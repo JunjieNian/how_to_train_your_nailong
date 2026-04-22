@@ -13,10 +13,37 @@
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
+    <ClCompile Include="Core\GameEngine.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Media\VideoController.cpp">
+      <Filter>Media</Filter>
+    </ClCompile>
+    <ClCompile Include="Media\CameraService.cpp">
+      <Filter>Media</Filter>
+    </ClCompile>
+    <ClCompile Include="IPC\SmileResultPipe.cpp">
+      <Filter>IPC</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Core\GameState.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\GameEngine.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Media\VideoController.h">
+      <Filter>Media</Filter>
+    </ClInclude>
+    <ClInclude Include="Media\CameraService.h">
+      <Filter>Media</Filter>
+    </ClInclude>
+    <ClInclude Include="IPC\SmileResultPipe.h">
+      <Filter>IPC</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Wide310x150Logo.scale-200.png">
@@ -45,6 +72,18 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{7d85b9b3-fa07-43f7-b524-4c06e70a9053}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Config">
+      <UniqueIdentifier>{8a2d2e91-1c4e-4fb1-9d10-2a7e0a7b3a01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{8a2d2e91-1c4e-4fb1-9d10-2a7e0a7b3a02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Media">
+      <UniqueIdentifier>{8a2d2e91-1c4e-4fb1-9d10-2a7e0a7b3a03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IPC">
+      <UniqueIdentifier>{8a2d2e91-1c4e-4fb1-9d10-2a7e0a7b3a04}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
@@ -66,6 +105,20 @@
     <Media Include="Assets\Video\Naiwa.mp4">
       <Filter>Assets</Filter>
     </Media>
+    <Media Include="Assets\Video\Naiwa_h264.mp4">
+      <Filter>Assets</Filter>
+    </Media>
+    <Media Include="Assets\Video\Naiwa_reverse.mp4">
+      <Filter>Assets</Filter>
+    </Media>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Config\game_difficulty.json">
+      <Filter>Assets\Config</Filter>
+    </Content>
+    <Content Include="Assets\Config\video_segments.json">
+      <Filter>Assets\Config</Filter>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="$(MSBuildThisFileDirectory)..\..\natvis\wil.natvis" />
