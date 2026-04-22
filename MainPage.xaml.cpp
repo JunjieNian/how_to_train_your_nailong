@@ -33,7 +33,7 @@ using namespace Microsoft::UI::Xaml;
 namespace winrt::how_to_train_your_nailong::implementation
 {
     // -------- ViewBridge implementation of IGameView -----------------------
-    struct MainPage::ViewBridge : how_to_train_your_nailong::Game::IGameView
+    struct MainPage::ViewBridge : ::how_to_train_your_nailong::Game::IGameView
     {
         MainPage* owner;
         explicit ViewBridge(MainPage* o) : owner(o) {}
@@ -59,12 +59,12 @@ namespace winrt::how_to_train_your_nailong::implementation
         {
             if (owner->m_video) owner->m_video->TriggerLaugh();
         }
-        void ShowResult(how_to_train_your_nailong::Game::Winner winner) override
+        void ShowResult(::how_to_train_your_nailong::Game::Winner winner) override
         {
             std::wstring_view text =
-                winner == how_to_train_your_nailong::Game::Winner::User
+                winner == ::how_to_train_your_nailong::Game::Winner::User
                     ? L"奶龙先笑了！你赢了"
-                : winner == how_to_train_your_nailong::Game::Winner::Nailong
+                : winner == ::how_to_train_your_nailong::Game::Winner::Nailong
                     ? L"你笑了！奶龙赢"
                     : L"本局无效";
             owner->SetOverlay(text);
@@ -105,13 +105,13 @@ namespace winrt::how_to_train_your_nailong::implementation
     void MainPage::InitializeGame()
     {
         m_view_bridge = std::make_unique<ViewBridge>(this);
-        m_engine = std::make_unique<how_to_train_your_nailong::Game::GameEngine>(*m_view_bridge);
+        m_engine = std::make_unique<::how_to_train_your_nailong::Game::GameEngine>(*m_view_bridge);
         m_engine->SetDifficulty(m_difficulty);
 
-        m_video = std::make_unique<how_to_train_your_nailong::Media::VideoController>(VideoPlayer());
+        m_video = std::make_unique<::how_to_train_your_nailong::Media::VideoController>(VideoPlayer());
         // Load segment timings from the packaged config; fall back to the
         // URI defaults baked into VideoSegments if loading fails.
-        auto segments = how_to_train_your_nailong::Media::VideoSegments::LoadFromPackage(
+        auto segments = ::how_to_train_your_nailong::Media::VideoSegments::LoadFromPackage(
             L"ms-appx:///Assets/Config/video_segments.json");
         if (segments.source_uri.empty())
         {
@@ -126,8 +126,8 @@ namespace winrt::how_to_train_your_nailong::implementation
         };
 
         auto ui_queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-        m_pipe = std::make_unique<how_to_train_your_nailong::IPC::SmileResultPipe>(ui_queue);
-        m_pipe->OnSample = [this](how_to_train_your_nailong::Game::SmileSample s) {
+        m_pipe = std::make_unique<::how_to_train_your_nailong::IPC::SmileResultPipe>(ui_queue);
+        m_pipe->OnSample = [this](::how_to_train_your_nailong::Game::SmileSample s) {
             if (m_engine) m_engine->OnSmileSample(s);
         };
         m_pipe->OnConnected = [this] {
@@ -138,7 +138,7 @@ namespace winrt::how_to_train_your_nailong::implementation
             DisableControls(false);
         };
 
-        m_camera = std::make_unique<how_to_train_your_nailong::Media::CameraService>();
+        m_camera = std::make_unique<::how_to_train_your_nailong::Media::CameraService>();
         // Auto-spawn of the sidecar is not wired yet — run it manually:
         //   python tools/smile_sidecar/main.py --model ... --port 38751
     }
@@ -180,9 +180,9 @@ namespace winrt::how_to_train_your_nailong::implementation
     {
         const auto idx = DifficultyCombo().SelectedIndex();
         m_difficulty =
-            idx == 0 ? how_to_train_your_nailong::Game::Difficulty::Easy :
-            idx == 2 ? how_to_train_your_nailong::Game::Difficulty::Hard :
-                       how_to_train_your_nailong::Game::Difficulty::Normal;
+            idx == 0 ? ::how_to_train_your_nailong::Game::Difficulty::Easy :
+            idx == 2 ? ::how_to_train_your_nailong::Game::Difficulty::Hard :
+                       ::how_to_train_your_nailong::Game::Difficulty::Normal;
         if (m_engine) m_engine->SetDifficulty(m_difficulty);
     }
 
