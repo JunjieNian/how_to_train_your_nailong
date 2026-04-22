@@ -1,14 +1,15 @@
 #include "pch.h"
 #include "VideoController.h"
 
+#include <fstream>
+#include <filesystem>
 #include <random>
 
+#include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Media.Core.h>
-#include <winrt/Windows.Storage.h>
-#include <winrt/Windows.Storage.Streams.h>
 
 namespace how_to_train_your_nailong::Media
 {
@@ -25,6 +26,21 @@ namespace how_to_train_your_nailong::Media
         {
             return std::chrono::duration_cast<Ms>(ts);
         }
+
+        std::filesystem::path ResolvePackagePath(std::wstring_view package_uri)
+        {
+            Uri uri{winrt::hstring{package_uri}};
+            std::wstring relative{uri.Path().c_str()};
+            while (!relative.empty() && (relative.front() == L'/' || relative.front() == L'\\'))
+            {
+                relative.erase(relative.begin());
+            }
+
+            std::filesystem::path root{
+                winrt::Windows::ApplicationModel::Package::Current().InstalledLocation().Path().c_str()
+            };
+            return root / std::filesystem::path{relative};
+        }
     }
 
     // ---------------- VideoSegments JSON loader -----------------------------
@@ -32,18 +48,22 @@ namespace how_to_train_your_nailong::Media
     VideoSegments VideoSegments::LoadFromPackage(std::wstring_view config_uri)
     {
         using namespace winrt::Windows::Data::Json;
-        using namespace winrt::Windows::Storage;
-        using namespace winrt::Windows::Storage::Streams;
 
         VideoSegments seg{};
         try
         {
-            Uri uri{winrt::hstring{config_uri}};
-            auto file = StorageFile::GetFileFromApplicationUriAsync(uri).get();
-            auto buf  = FileIO::ReadBufferAsync(file).get();
-            auto reader = DataReader::FromBuffer(buf);
-            auto text = reader.ReadString(buf.Length());
-            auto root = JsonObject::Parse(text);
+            const auto path = ResolvePackagePath(config_uri);
+            std::ifstream input(path, std::ios::binary);
+            if (!input)
+            {
+                return seg;
+            }
+
+            const std::string text{
+                std::istreambuf_iterator<char>{input},
+                std::istreambuf_iterator<char>{}
+            };
+            auto root = JsonObject::Parse(winrt::to_hstring(text));
 
             auto W = [&](std::wstring_view k) -> std::wstring {
                 return std::wstring{root.GetNamedString(winrt::hstring{k}).c_str()};
