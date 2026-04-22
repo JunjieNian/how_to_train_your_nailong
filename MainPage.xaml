@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Naiwa.MainPage"
+    Background="White"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Naiwa"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid" Background="White">
+        <Border x:Name="VideoBorder" Background="White"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <MediaPlayerElement x:Name="VideoPlayer"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Stretch="Uniform"
+                                AreTransportControlsEnabled="False"
+                                Background="Transparent" />
+        </Border>
+        
+        <Button x:Name="PlayButton"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Width="120"
+                Height="40"
+                Margin="0,0,0,20"
+                Content="循环播放"
+                Click="PlayButton_Click" />
+
+    </Grid>
+</Page>
