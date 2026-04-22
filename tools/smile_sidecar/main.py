@@ -193,6 +193,7 @@ def capture_loop(
 
     period = 1.0 / target_fps
     next_t = time.monotonic()
+    last_ts_ms = -1
     log.info("capture started @ %.1f FPS", target_fps)
 
     while not stop.is_set():
@@ -210,7 +211,9 @@ def capture_loop(
             continue
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        ts_ms = int(time.monotonic() * 1000)
+        now_ts_ms = int(time.monotonic() * 1000)
+        ts_ms = now_ts_ms if now_ts_ms > last_ts_ms else last_ts_ms + 1
+        last_ts_ms = ts_ms
         try:
             landmarker.detect_async(mp_image, ts_ms)
         except Exception as e:  # pragma: no cover
