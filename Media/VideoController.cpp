@@ -10,6 +10,7 @@
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Media.Core.h>
+#include <winrt/Windows.Storage.h>
 
 namespace how_to_train_your_nailong::Media
 {
