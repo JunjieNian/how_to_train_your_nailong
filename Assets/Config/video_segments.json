@@ -1,0 +1,32 @@
+{
+  "_comment": "Frame-level segmentation of Naiwa.mp4. Times are milliseconds from t=0 of the original mp4. Filled by tools/probe_segments.py and consumed by Media/VideoController.",
+  "source": "ms-appx:///Assets/Video/Naiwa.mp4",
+  "source_h264_fallback": "ms-appx:///Assets/Video/Naiwa_h264.mp4",
+  "reverse_source": "ms-appx:///Assets/Video/Naiwa_reverse.mp4",
+
+  "fps": 30.0,
+  "duration_ms": 15400,
+  "frame_count": 462,
+  "width": 1080,
+  "height": 1474,
+  "source_codec": "hevc",
+  "reverse_codec": "h264",
+
+  "stare_start_ms": 0,
+  "stare_end_ms": 1000,
+  "laugh_trigger_frame_ms": 1000,
+  "laugh_segment_end_ms": null,
+
+  "pause_after_stare_ms_range": [800, 1200],
+  "pause_before_stare_ms_range": [400, 800],
+
+  "_field_doc": {
+    "stare_start_ms / stare_end_ms": "The 'looking-at-viewer' segment that loops while we wait for the laugh trigger.",
+    "laugh_trigger_frame_ms": "Frame at which we cut over to the laugh segment. Should equal stare_end_ms so the cut is invisible.",
+    "laugh_segment_end_ms": "End of the laugh playback. null = play until natural end of file.",
+    "pause_after_stare_ms_range": "Hold-on-last-frame duration (uniform random) at the end of forward stare, before reverse begins.",
+    "pause_before_stare_ms_range": "Hold-on-first-frame duration (uniform random) at the end of reverse stare, before next forward begins.",
+    "reverse_source": "Pre-generated reverse video produced by tools/make_reverse_video.sh. MediaPlayer cannot reverse natively.",
+    "source_h264_fallback": "Same content as source but re-encoded to H.264 (audio preserved). Use when target Windows machine lacks the HEVC Video Extension."
+  }
+}

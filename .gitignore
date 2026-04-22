@@ -361,3 +361,25 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# === how_to_train_your_nailong project additions ===
+
+# Python sidecar virtualenvs
+venv/
+.venv/
+tools/smile_sidecar/venv/
+tools/smile_sidecar/.venv/
+
+# Downloaded MediaPipe model assets (large, fetched at setup time)
+*.task
+tools/smile_sidecar/face_landmarker.task
+tools/smile_sidecar/models/
+
+# Jupyter scratch / IDE leftovers
+.ipynb_checkpoints/
+.idea/
+.vscode/
+
+# OS noise
+.DS_Store
+Thumbs.db
