@@ -1,4 +1,4 @@
-# how_to_train_your_nailong
+# 驯龙高手 How to Train Your Nailong
 
 一个基于 WinUI 3 + C++/WinRT 的“别把自己逗笑”小游戏原型：你盯着奶龙，摄像头实时检测你的表情；如果你先笑，奶龙获胜；如果你撑到隐藏时机点，奶龙会先笑，你获胜。
 
