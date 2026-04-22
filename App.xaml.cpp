@@ -9,7 +9,7 @@ using namespace Microsoft::UI::Xaml;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace winrt::Naiwa::implementation
+namespace winrt::how_to_train_your_nailong::implementation
 {
     /// <summary>
     /// Initializes the singleton application object.  This is the first line of authored code

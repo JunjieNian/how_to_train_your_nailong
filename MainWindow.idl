@@ -1,4 +1,4 @@
-namespace Naiwa
+namespace how_to_train_your_nailong
 {
     [default_interface]
     runtimeclass MainWindow : Microsoft.UI.Xaml.Window

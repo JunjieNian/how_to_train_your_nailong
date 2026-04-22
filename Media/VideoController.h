@@ -29,7 +29,7 @@
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Windows.Media.Playback.h>
 
-namespace Naiwa::Media
+namespace how_to_train_your_nailong::Media
 {
     using Ms = std::chrono::milliseconds;
 

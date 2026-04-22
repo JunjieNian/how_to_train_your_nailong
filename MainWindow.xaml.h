@@ -2,7 +2,7 @@
 
 #include "MainWindow.g.h"
 
-namespace winrt::Naiwa::implementation
+namespace winrt::how_to_train_your_nailong::implementation
 {
     struct MainWindow : MainWindowT<MainWindow>
     {
@@ -17,7 +17,7 @@ namespace winrt::Naiwa::implementation
     };
 }
 
-namespace winrt::Naiwa::factory_implementation
+namespace winrt::how_to_train_your_nailong::factory_implementation
 {
     struct MainWindow : MainWindowT<MainWindow, implementation::MainWindow>
     {

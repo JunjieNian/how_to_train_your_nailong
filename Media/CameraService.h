@@ -15,7 +15,7 @@
 #include <memory>
 #include <string>
 
-namespace Naiwa::Media
+namespace how_to_train_your_nailong::Media
 {
     struct CameraServiceConfig
     {

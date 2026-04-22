@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make_reverse_video.sh — produce Assets/Video/Naiwa_reverse.mp4.
+# make_reverse_video.sh — produce Assets/Video/how_to_train_your_nailong_reverse.mp4.
 #
 # Reverses the full source clip and re-encodes to H.264 (libx264) with audio
 # stripped. We reverse the whole file rather than just the stare segment so
@@ -19,8 +19,8 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-IN="${1:-$REPO/Assets/Video/Naiwa.mp4}"
-OUT="${2:-$REPO/Assets/Video/Naiwa_reverse.mp4}"
+IN="${1:-$REPO/Assets/Video/how_to_train_your_nailong.mp4}"
+OUT="${2:-$REPO/Assets/Video/how_to_train_your_nailong_reverse.mp4}"
 
 if [[ -n "${FFMPEG:-}" ]]; then
     FF="$FFMPEG"

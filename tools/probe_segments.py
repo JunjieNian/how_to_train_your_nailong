@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-probe_segments.py — Inspect Naiwa.mp4 and produce/update Assets/Config/video_segments.json.
+probe_segments.py — Inspect how_to_train_your_nailong.mp4 and produce/update Assets/Config/video_segments.json.
 
 Two modes:
 
@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_VIDEO = REPO_ROOT / "Assets" / "Video" / "Naiwa.mp4"
+DEFAULT_VIDEO = REPO_ROOT / "Assets" / "Video" / "how_to_train_your_nailong.mp4"
 DEFAULT_CONFIG = REPO_ROOT / "Assets" / "Config" / "video_segments.json"
 
 
@@ -105,8 +105,8 @@ def main() -> None:
         return
 
     cfg = load_config(args.config)
-    cfg.setdefault("source", "ms-appx:///Assets/Video/Naiwa.mp4")
-    cfg.setdefault("reverse_source", "ms-appx:///Assets/Video/Naiwa_reverse.mp4")
+    cfg.setdefault("source", "ms-appx:///Assets/Video/how_to_train_your_nailong.mp4")
+    cfg.setdefault("reverse_source", "ms-appx:///Assets/Video/how_to_train_your_nailong_reverse.mp4")
     cfg["fps"] = info["fps"]
     cfg["duration_ms"] = info["duration_ms"]
     cfg["frame_count"] = info["frame_count"]

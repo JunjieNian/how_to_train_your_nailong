@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by Naiwa.rc
+// Used by how_to_train_your_nailong.rc
 
 // 新对象的下一组默认值
 // 

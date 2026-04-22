@@ -8,7 +8,7 @@
 
 #include <cstdint>
 
-namespace Naiwa::Game
+namespace how_to_train_your_nailong::Game
 {
     enum class GameState : std::uint8_t
     {

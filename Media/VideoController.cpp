@@ -10,7 +10,7 @@
 #include <winrt/Windows.Storage.h>
 #include <winrt/Windows.Storage.Streams.h>
 
-namespace Naiwa::Media
+namespace how_to_train_your_nailong::Media
 {
     namespace
     {

@@ -4,7 +4,7 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Naiwa.vcxproj" Id="7d85b9b3-fa07-43f7-b524-4c06e70a9053">
+  <Project Path="how_to_train_your_nailong.vcxproj" Id="7d85b9b3-fa07-43f7-b524-4c06e70a9053">
     <Deploy />
   </Project>
 </Solution>

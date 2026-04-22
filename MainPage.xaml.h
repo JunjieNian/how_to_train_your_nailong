@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace winrt::Naiwa::implementation
+namespace winrt::how_to_train_your_nailong::implementation
 {
     struct MainPage : MainPageT<MainPage>
     {
@@ -44,12 +44,13 @@ namespace winrt::Naiwa::implementation
         struct ViewBridge;
         std::unique_ptr<ViewBridge>                 m_view_bridge;
 
-        std::unique_ptr<Naiwa::Game::GameEngine>     m_engine;
-        std::unique_ptr<Naiwa::Media::VideoController> m_video;
-        std::unique_ptr<Naiwa::Media::CameraService>  m_camera;
-        std::unique_ptr<Naiwa::IPC::SmileResultPipe>  m_pipe;
+        std::unique_ptr<how_to_train_your_nailong::Game::GameEngine>       m_engine;
+        std::unique_ptr<how_to_train_your_nailong::Media::VideoController> m_video;
+        std::unique_ptr<how_to_train_your_nailong::Media::CameraService>   m_camera;
+        std::unique_ptr<how_to_train_your_nailong::IPC::SmileResultPipe>   m_pipe;
 
-        Naiwa::Game::Difficulty                      m_difficulty{Naiwa::Game::Difficulty::Normal};
+        how_to_train_your_nailong::Game::Difficulty m_difficulty{
+            how_to_train_your_nailong::Game::Difficulty::Normal};
 
         void InitializeGame();
         void SetOverlay(std::wstring_view text);
@@ -58,7 +59,7 @@ namespace winrt::Naiwa::implementation
     };
 }
 
-namespace winrt::Naiwa::factory_implementation
+namespace winrt::how_to_train_your_nailong::factory_implementation
 {
     struct MainPage : MainPageT<MainPage, implementation::MainPage>
     {

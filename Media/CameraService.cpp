@@ -14,7 +14,7 @@
 #include <ws2tcpip.h>
 #pragma comment(lib, "Ws2_32.lib")
 
-namespace Naiwa::Media
+namespace how_to_train_your_nailong::Media
 {
     namespace
     {

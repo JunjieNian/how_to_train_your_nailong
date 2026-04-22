@@ -2,7 +2,7 @@
 
 #include "App.xaml.g.h"
 
-namespace winrt::Naiwa::implementation
+namespace winrt::how_to_train_your_nailong::implementation
 {
     struct App : AppT<App>
     {

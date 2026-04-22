@@ -7,7 +7,7 @@
 
 #include <winrt/Microsoft.UI.Dispatching.h>
 
-namespace Naiwa::Game
+namespace how_to_train_your_nailong::Game
 {
     namespace
     {

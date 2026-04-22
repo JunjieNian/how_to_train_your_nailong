@@ -12,7 +12,7 @@
 #include <winrt/Windows.Networking.Sockets.h>
 #include <winrt/Windows.Storage.Streams.h>
 
-namespace Naiwa::IPC
+namespace how_to_train_your_nailong::IPC
 {
     using winrt::Windows::Data::Json::JsonObject;
     using winrt::Windows::Data::Json::JsonValue;

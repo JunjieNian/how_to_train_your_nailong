@@ -19,7 +19,7 @@
 
 #include <winrt/Microsoft.UI.Dispatching.h>
 
-namespace Naiwa::IPC
+namespace how_to_train_your_nailong::IPC
 {
     class SmileResultPipe
     {

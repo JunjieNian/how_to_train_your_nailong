@@ -16,7 +16,7 @@
   <mp:PhoneIdentity PhoneProductId="2c71a65c-4d2d-491f-99ca-5fee79af2e0d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>Naiwa</DisplayName>
+    <DisplayName>how_to_train_your_nailong</DisplayName>
     <PublisherDisplayName>ChenGongshuo</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -35,8 +35,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="Naiwa"
-        Description="Naiwa"
+        DisplayName="how_to_train_your_nailong"
+        Description="how_to_train_your_nailong"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">

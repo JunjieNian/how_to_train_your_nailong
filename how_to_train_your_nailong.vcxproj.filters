@@ -86,9 +86,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="readme.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <Manifest Include="app.manifest" />
   </ItemGroup>
   <ItemGroup>
@@ -96,19 +93,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Naiwa_TemporaryKey.pfx" />
+    <None Include="how_to_train_your_nailong_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Naiwa.rc" />
+    <ResourceCompile Include="how_to_train_your_nailong.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Media Include="Assets\Video\Naiwa.mp4">
+    <Media Include="Assets\Video\how_to_train_your_nailong.mp4">
       <Filter>Assets</Filter>
     </Media>
-    <Media Include="Assets\Video\Naiwa_h264.mp4">
+    <Media Include="Assets\Video\how_to_train_your_nailong_h264.mp4">
       <Filter>Assets</Filter>
     </Media>
-    <Media Include="Assets\Video\Naiwa_reverse.mp4">
+    <Media Include="Assets\Video\how_to_train_your_nailong_reverse.mp4">
       <Filter>Assets</Filter>
     </Media>
   </ItemGroup>
