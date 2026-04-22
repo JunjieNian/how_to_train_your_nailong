@@ -29,7 +29,13 @@ Run:
     # download the model once:
     curl -L -o face_landmarker.task \
         https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task
+
+    # production: read from a real webcam
     python3 main.py --model face_landmarker.task --port 38751 --camera 0
+
+    # dev: feed a video file or still image (loops at --fps regardless of native rate)
+    python3 main.py --model face_landmarker.task --source /path/to/face_clip.mp4
+    python3 main.py --model face_landmarker.task --source /path/to/selfie.jpg
 """
 
 from __future__ import annotations
@@ -146,19 +152,43 @@ class Bus:
 
 def capture_loop(
     camera_index: int,
+    source_path: str | None,
     target_fps: float,
     landmarker,
     started: threading.Event,
     stop: threading.Event,
 ) -> None:
+    """Capture frames from a webcam (camera_index >= 0) or a file (source_path).
+
+    File mode is meant for development on machines without a webcam; the file
+    is looped indefinitely at target_fps regardless of its native frame rate.
+    Single images are also accepted (one frame is re-emitted on every tick).
+    """
     import cv2  # type: ignore
     import mediapipe as mp  # type: ignore
 
-    cap = cv2.VideoCapture(camera_index)
-    if not cap.isOpened():
-        log.error("cannot open camera %d", camera_index)
-        return
-    cap.set(cv2.CAP_PROP_FPS, target_fps)
+    is_image = False
+    static_frame = None
+    if source_path is not None:
+        cap = cv2.VideoCapture(source_path)
+        if not cap.isOpened():
+            # Try as a still image
+            static_frame = cv2.imread(source_path)
+            if static_frame is None:
+                log.error("cannot open source %s", source_path)
+                return
+            is_image = True
+            log.info("source = still image %s (%dx%d)",
+                     source_path, static_frame.shape[1], static_frame.shape[0])
+        else:
+            log.info("source = video file %s", source_path)
+    else:
+        cap = cv2.VideoCapture(camera_index)
+        if not cap.isOpened():
+            log.error("cannot open camera %d", camera_index)
+            return
+        cap.set(cv2.CAP_PROP_FPS, target_fps)
+        log.info("source = camera %d", camera_index)
     started.set()
 
     period = 1.0 / target_fps
@@ -166,7 +196,15 @@ def capture_loop(
     log.info("capture started @ %.1f FPS", target_fps)
 
     while not stop.is_set():
-        ok, frame = cap.read()
+        if is_image:
+            frame = static_frame.copy()
+            ok = True
+        else:
+            ok, frame = cap.read()
+            if not ok and source_path is not None:
+                # End of file → loop back to first frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
         if not ok:
             time.sleep(0.05)
             continue
@@ -185,7 +223,8 @@ def capture_loop(
         else:
             next_t = time.monotonic()  # we're behind, drop the schedule
 
-    cap.release()
+    if not is_image:
+        cap.release()
     log.info("capture stopped")
 
 
@@ -232,15 +271,64 @@ async def serve(args: argparse.Namespace) -> None:
             "blendshapes": {k: round(v, 4) for k, v in picked.items()},
         })
 
-    landmarker = make_landmarker(Path(args.model), on_result)
-
     started = threading.Event()
     stop = threading.Event()
-    cap_thread = threading.Thread(
-        target=capture_loop,
-        args=(args.camera, args.fps, landmarker, started, stop),
-        daemon=True,
-    )
+
+    if args.mock_detector:
+        # Synthetic signal: smile_score = 0.5 + 0.4*sin(2π·t/period). Useful for
+        # smoke-testing the WebSocket protocol without MediaPipe / a real face.
+        import math
+
+        def mock_loop():
+            log.info("source = MOCK detector (sine, period=%.1fs)", args.mock_period)
+            started.set()
+            period = 1.0 / args.fps
+            next_t = time.monotonic()
+            t0 = time.monotonic()
+            while not stop.is_set():
+                t = time.monotonic() - t0
+                score_raw = 0.5 + 0.4 * math.sin(2 * math.pi * t / args.mock_period)
+                ts_ms = int(time.monotonic() * 1000)
+                # Hand-write a synthetic on_result-equivalent payload.
+                if state.calibrating:
+                    state.calibration_samples.append(score_raw)
+                score = max(0.0, score_raw - state.baseline) if state.baseline is not None else score_raw
+                above = score > state.threshold
+                state.recent_above.append(above)
+                is_smiling = (
+                    state.baseline is not None
+                    and sum(state.recent_above) >= state.consecutive
+                )
+                bus.push_threadsafe({
+                    "type": "sample",
+                    "t": ts_ms,
+                    "face_found": True,
+                    "smile_score": round(score, 4),
+                    "smile_score_raw": round(score_raw, 4),
+                    "is_smiling": is_smiling,
+                    "calibrated": state.baseline is not None,
+                    "blendshapes": {"mouthSmileLeft": round(score_raw, 4),
+                                    "mouthSmileRight": round(score_raw, 4),
+                                    "jawOpen": 0.0},
+                    "mock": True,
+                })
+                next_t += period
+                sleep = next_t - time.monotonic()
+                if sleep > 0:
+                    time.sleep(sleep)
+                else:
+                    next_t = time.monotonic()
+            log.info("mock detector stopped")
+
+        cap_thread = threading.Thread(target=mock_loop, daemon=True)
+    else:
+        landmarker = make_landmarker(Path(args.model), on_result)
+        cap_thread = threading.Thread(
+            target=capture_loop,
+            args=(args.camera, args.source, args.fps, landmarker, started, stop),
+            daemon=True,
+        )
+
     cap_thread.start()
     if not started.wait(timeout=5.0):
         log.error("capture thread failed to start within 5s")
@@ -300,8 +388,16 @@ async def serve(args: argparse.Namespace) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, help="path to face_landmarker.task")
-    ap.add_argument("--camera", type=int, default=0)
+    ap.add_argument("--model", default=None,
+                    help="path to face_landmarker.task (required unless --mock-detector)")
+    ap.add_argument("--camera", type=int, default=0,
+                    help="webcam index (ignored if --source or --mock-detector is given)")
+    ap.add_argument("--source", default=None,
+                    help="path to a video file or still image to use instead of a webcam (dev mode)")
+    ap.add_argument("--mock-detector", action="store_true",
+                    help="emit synthetic smile_score sin-wave samples without using MediaPipe / a camera")
+    ap.add_argument("--mock-period", type=float, default=4.0,
+                    help="period (seconds) of the mock-detector smile_score sine wave")
     ap.add_argument("--fps", type=float, default=15.0, help="target capture FPS")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=38751)
@@ -309,6 +405,9 @@ def main() -> None:
     ap.add_argument("--consecutive", type=int, default=4)
     ap.add_argument("--log", default="INFO")
     args = ap.parse_args()
+
+    if not args.mock_detector and not args.model:
+        ap.error("--model is required unless --mock-detector is set")
 
     logging.basicConfig(
         level=getattr(logging, args.log.upper(), logging.INFO),
