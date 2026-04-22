@@ -1,121 +1,202 @@
 #include "pch.h"
-#include <winrt/Windows.Media.Playback.h>
-#include <winrt/Windows.Media.Core.h>
 #include "MainPage.xaml.h"
 #if __has_include("MainPage.g.cpp")
 #include "MainPage.g.cpp"
 #endif
 
+#include <winrt/Microsoft.UI.Dispatching.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
-using namespace Windows::Media::Playback;
-using namespace Windows::Media::Core;
-using namespace winrt::Windows::Foundation;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+// ---------------------------------------------------------------------------
+//
+// MainPage glues four subsystems together:
+//
+//   VideoController  → owns the奶龙 MediaPlayer + cycle / laugh logic
+//   SmileResultPipe  → WebSocket client for the Python smile sidecar
+//   CameraService    → spawns / tears down the sidecar (no-op stub for MVP)
+//   GameEngine       → state machine driving everything else
+//
+// MainPage itself implements the IGameView callback surface via a small
+// internal bridge object (ViewBridge) that just calls back into MainPage.
+//
+// MVP behaviour (until CameraService.Start is wired):
+//   - The sidecar must be launched manually before pressing Start, e.g.:
+//       python tools/smile_sidecar/main.py --model ... --port 38751
+//   - StartButton_Click connects the WS pipe; once OnConnected fires,
+//     GameEngine::OnSidecarReady() is called and the round begins.
+//
+// ---------------------------------------------------------------------------
 
 namespace winrt::Naiwa::implementation
 {
+    // -------- ViewBridge implementation of IGameView -----------------------
+    struct MainPage::ViewBridge : Naiwa::Game::IGameView
+    {
+        MainPage* owner;
+        explicit ViewBridge(MainPage* o) : owner(o) {}
+
+        void ShowOverlay(std::wstring_view text) override
+        {
+            owner->SetOverlay(text);
+        }
+        void ClearOverlay() override
+        {
+            owner->ClearOverlay();
+        }
+        void StartCountdown(int /*seconds*/) override
+        {
+            // The numeric label is pushed via ShowOverlay by GameEngine; this
+            // hook is a place to attach a beep / animation later.
+        }
+        void BeginStareCycle() override
+        {
+            if (owner->m_video) owner->m_video->BeginStareCycle();
+        }
+        void TriggerNailongLaugh() override
+        {
+            if (owner->m_video) owner->m_video->TriggerLaugh();
+        }
+        void ShowResult(Naiwa::Game::Winner winner) override
+        {
+            std::wstring_view text =
+                winner == Naiwa::Game::Winner::User    ? L"奶龙先笑了！你赢了" :
+                winner == Naiwa::Game::Winner::Nailong ? L"你笑了！奶龙赢"     :
+                                                         L"本局无效";
+            owner->SetOverlay(text);
+            owner->DisableControls(false);
+        }
+        void RequestSidecarCalibration(bool start) override
+        {
+            if (!owner->m_pipe) return;
+            if (start) owner->m_pipe->StartCalibration();
+            else       owner->m_pipe->EndCalibration();
+        }
+    };
+
+    // -------- MainPage -----------------------------------------------------
+
     MainPage::MainPage()
     {
         InitializeComponent();
-        Loaded({ this, &MainPage::OnLoaded });
+        Loaded({this, &MainPage::OnLoaded});
     }
 
-	MainPage::~MainPage()
-	{
-		if (mediaPlayer)
-		{
-			mediaPlayer.Close();
-		}
-	}
-
-    int32_t MainPage::MyProperty()
+    MainPage::~MainPage()
     {
-        throw hresult_not_implemented();
+        // Members destroyed in reverse declaration order (camera last → its
+        // dtor closes the Job Object handle which kills the sidecar).
     }
 
-    void MainPage::MyProperty(int32_t /* value */)
+    int32_t MainPage::MyProperty()              { throw hresult_not_implemented(); }
+    void    MainPage::MyProperty(int32_t)       { throw hresult_not_implemented(); }
+
+    void MainPage::OnLoaded(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
     {
-        throw hresult_not_implemented();
+        InitializeGame();
     }
 
-    void MainPage::OnLoaded(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
+    void MainPage::InitializeGame()
     {
-        // 在页面加载后初始化媒体播放器并将其附加到 MediaPlayerElement
-        InitializeMediaPlayer();
-        if (VideoPlayer())
+        m_view_bridge = std::make_unique<ViewBridge>(this);
+        m_engine = std::make_unique<Naiwa::Game::GameEngine>(*m_view_bridge);
+        m_engine->SetDifficulty(m_difficulty);
+
+        m_video = std::make_unique<Naiwa::Media::VideoController>(VideoPlayer());
+        // Load segment timings from the packaged config; fall back to the
+        // URI defaults baked into VideoSegments if loading fails.
+        auto segments = Naiwa::Media::VideoSegments::LoadFromPackage(
+            L"ms-appx:///Assets/Config/video_segments.json");
+        if (segments.source_uri.empty())
         {
-            VideoPlayer().SetMediaPlayer(mediaPlayer);
-            // 根据视频原始尺寸调整控件宽度以匹配视频宽度，同时填满窗口高度
-            // 如果无法立即获得 NaturalVideoHeight/Width，则在 MediaOpened 回调中设置
-            auto playbackSession = mediaPlayer.PlaybackSession();
-            auto setSize = [this, playbackSession]() {
-                try
-                {
-                    double videoW = static_cast<double>(playbackSession.NaturalVideoWidth());
-                    double videoH = static_cast<double>(playbackSession.NaturalVideoHeight());
-                    if (videoW > 0 && videoH > 0)
-                    {
-                        double containerH = VideoBorder().ActualHeight();
-                        double scale = containerH / videoH;
-                        double desiredW = videoW * scale;
-                        VideoPlayer().Width(desiredW);
-                        VideoPlayer().Height(containerH);
-                        // 居中
-                        VideoPlayer().HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Center);
-                        VideoPlayer().VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Center);
-                    }
-                }
-                catch (...) {}
-            };
+            segments.source_uri         = L"ms-appx:///Assets/Video/Naiwa.mp4";
+            segments.reverse_source_uri = L"ms-appx:///Assets/Video/Naiwa_reverse.mp4";
+        }
+        m_video->Configure(segments);
+        m_video->CycleBoundary = [this] {
+            if (m_engine) m_engine->OnStareCycleBoundary();
+        };
 
-            mediaPlayer.MediaOpened([this, setSize](auto&&, auto&&) {
-                setSize();
-            });
+        auto ui_queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+        m_pipe = std::make_unique<Naiwa::IPC::SmileResultPipe>(ui_queue);
+        m_pipe->OnSample = [this](Naiwa::Game::SmileSample s) {
+            if (m_engine) m_engine->OnSmileSample(s);
+        };
+        m_pipe->OnConnected = [this] {
+            if (m_engine) m_engine->OnSidecarReady();
+        };
+        m_pipe->OnDisconnected = [this](std::string /*reason*/) {
+            if (m_engine) m_engine->OnSidecarLost();
+            DisableControls(false);
+        };
 
-            // 也在 Border 大小改变时重新计算
-            VideoBorder().SizeChanged([this, setSize](auto&&, auto&&) {
-                setSize();
-            });
+        m_camera = std::make_unique<Naiwa::Media::CameraService>();
+        // Auto-spawn of the sidecar is not wired yet — run it manually:
+        //   python tools/smile_sidecar/main.py --model ... --port 38751
+    }
 
-            // 确保在首次布局完成后也做一次尺寸计算（解决启动时 ActualHeight 为 0 导致留白颜色未刷新的问题）
-            {
-                winrt::event_token layoutToken;
-                layoutToken = VideoBorder().LayoutUpdated([this, setSize, &layoutToken](auto&&, auto&&) {
-                    setSize();
-                    // 取消订阅该事件（只执行一次）
-                    VideoBorder().LayoutUpdated(layoutToken);
-                });
-            }
+    void MainPage::StartButton_Click(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    {
+        if (!m_engine) return;
+        DisableControls(true);
+        m_engine->StartChallenge();
+        // Connect the pipe; OnConnected will call engine.OnSidecarReady() and
+        // the calibration → countdown → stare loop sequence kicks off from
+        // there. If the sidecar isn't running, OnDisconnected fires and the
+        // engine moves to the Invalid state.
+        if (m_pipe && !m_pipe->IsConnected())
+        {
+            m_pipe->Connect("127.0.0.1", 38751);
+        }
+        else if (m_pipe && m_pipe->IsConnected())
+        {
+            // Already connected from a previous round.
+            m_engine->OnSidecarReady();
         }
     }
-}
 
-void winrt::Naiwa::implementation::MainPage::PlayButton_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
-{
-    if (!mediaPlayer) return;
-
-	auto playbackSession = mediaPlayer.PlaybackSession();
-    if (playbackSession.PlaybackState() == MediaPlaybackState::Playing)
+    void MainPage::ResetButton_Click(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
     {
-        mediaPlayer.Pause();
-
-		//PlayButton().Content(winrt::box_value(L"循环播放"));
+        if (m_video)  m_video->Stop();
+        if (m_engine) m_engine->Reset();
+        DisableControls(false);
     }
-    else
+
+    void MainPage::DifficultyCombo_SelectionChanged(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&)
     {
-        mediaPlayer.Play();
-		//PlayButton().Content(winrt::box_value(L"暂停"));
+        const auto idx = DifficultyCombo().SelectedIndex();
+        m_difficulty =
+            idx == 0 ? Naiwa::Game::Difficulty::Easy   :
+            idx == 2 ? Naiwa::Game::Difficulty::Hard   :
+                       Naiwa::Game::Difficulty::Normal;
+        if (m_engine) m_engine->SetDifficulty(m_difficulty);
     }
-}
 
-void winrt::Naiwa::implementation::MainPage::InitializeMediaPlayer()
-{
-	mediaPlayer = MediaPlayer();
-	mediaPlayer.IsLoopingEnabled(true);
-    auto mediaSource = winrt::Windows::Media::Core::MediaSource::CreateFromUri(winrt::Windows::Foundation::Uri{ L"ms-appx:///Assets/Video/Naiwa.mp4" });
-    mediaPlayer.Source(mediaSource);
-	//PlayButton().Content(winrt::box_value(L"循环播放"));
+    void MainPage::SetOverlay(std::wstring_view text)
+    {
+        OverlayText().Text(winrt::hstring{text});
+        OverlayBackdrop().Visibility(Microsoft::UI::Xaml::Visibility::Visible);
+    }
+
+    void MainPage::ClearOverlay()
+    {
+        OverlayText().Text(L"");
+        OverlayBackdrop().Visibility(Microsoft::UI::Xaml::Visibility::Collapsed);
+    }
+
+    void MainPage::DisableControls(bool disabled)
+    {
+        StartButton().IsEnabled(!disabled);
+        DifficultyCombo().IsEnabled(!disabled);
+    }
 }
