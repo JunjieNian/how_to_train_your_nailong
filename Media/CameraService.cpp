@@ -9,9 +9,6 @@
 
 #include <winrt/Microsoft.UI.Dispatching.h>
 
-#include <Windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #pragma comment(lib, "Ws2_32.lib")
 
 namespace how_to_train_your_nailong::Media

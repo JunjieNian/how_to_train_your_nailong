@@ -8,6 +8,7 @@
 #include "Media/VideoController.h"
 
 #include <memory>
+#include <string_view>
 
 namespace winrt::how_to_train_your_nailong::implementation
 {

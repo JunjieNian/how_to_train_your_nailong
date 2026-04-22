@@ -2,6 +2,7 @@
 #include "GameEngine.h"
 
 #include <algorithm>
+#include <functional>
 #include <optional>
 #include <random>
 

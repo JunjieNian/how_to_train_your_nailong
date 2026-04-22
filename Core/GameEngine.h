@@ -19,6 +19,7 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <string_view>
 
 namespace how_to_train_your_nailong::Game
 {
