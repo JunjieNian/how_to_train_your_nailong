@@ -31,6 +31,7 @@ IN="$REPO/Assets/Video/how_to_train_your_nailong.mp4"
 OUT="$REPO/Assets/Video/how_to_train_your_nailong_reverse.mp4"
 STARE_START_MS=0
 STARE_END_MS=1000
+FPS=30
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -38,6 +39,7 @@ while [[ $# -gt 0 ]]; do
         --out)            OUT="$2"; shift 2 ;;
         --stare-start-ms) STARE_START_MS="$2"; shift 2 ;;
         --stare-end-ms)   STARE_END_MS="$2"; shift 2 ;;
+        --fps)            FPS="$2"; shift 2 ;;
         -h|--help)        sed -n '2,/^$/p' "$0"; exit 0 ;;
         *)                echo "unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -63,18 +65,23 @@ fi
 # ffmpeg wants seconds with decimals.
 SS=$(awk "BEGIN { printf \"%.3f\", $STARE_START_MS / 1000.0 }")
 DUR=$(awk "BEGIN { printf \"%.3f\", ($STARE_END_MS - $STARE_START_MS) / 1000.0 }")
+END=$(awk "BEGIN { printf \"%.3f\", $STARE_END_MS / 1000.0 }")
 
 echo "[ffmpeg] $FF"
 echo "[in   ]  $IN"
 echo "[out  ]  $OUT"
 echo "[clip ]  ss=${SS}s  duration=${DUR}s  (stare ${STARE_START_MS}–${STARE_END_MS} ms)"
+echo "[fps  ]  ${FPS}"
 
-# -ss / -t AFTER -i for accurate cut. -vf reverse on a 1-second clip is cheap.
+# IMPORTANT: trim MUST happen inside the filtergraph before reverse.
+# Using output-side `-ss/-t` with `-vf reverse` reverses the whole source first
+# and only then keeps the first second of the reversed output, which produces
+# the END of the original clip (late laugh / lying-down frames) instead of the
+# stare segment. `trim + setpts + reverse` preserves the intended cut order.
 # -an strips audio (reversed audio sounds wrong anyway).
 "$FF" -y -hide_banner -loglevel warning \
     -i "$IN" \
-    -ss "$SS" -t "$DUR" \
-    -vf reverse \
+    -vf "trim=start=${SS}:end=${END},setpts=PTS-STARTPTS,fps=${FPS},reverse" \
     -an \
     -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p \
     -movflags +faststart \
