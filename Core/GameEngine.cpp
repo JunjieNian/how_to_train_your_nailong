@@ -172,18 +172,41 @@ namespace how_to_train_your_nailong::Game
         void DeclareWinner(Winner w)
         {
             last_winner = w;
-            Transition(w == Winner::User ? GameState::NailongLaughTriggered
-                                         : GameState::UserLaughDetected);
+
+            // Both outcomes end with nailong laughing. The difference is timing:
+            //
+            // User wins (nailong laughed first):
+            //   t=0     TriggerNailongLaugh → seamless cut at next cycle boundary
+            //   t+300ms show "奶龙先笑了！你赢了" overlay, re-enable controls
+            //
+            // Nailong wins (user laughed first):
+            //   t=0     show "你笑了！奶龙赢" overlay (let user read it)
+            //   t+1500  TriggerNailongLaugh → nailong also breaks into laughter
+            //           re-enable controls (user can reset / start a new round)
+            //
+            // In both cases the stare cycle keeps running in the background
+            // until VideoController.TriggerLaugh() defers the cut to the next
+            // Forward→HoldEnd boundary for a visually seamless transition.
+
             if (w == Winner::User)
             {
+                Transition(GameState::NailongLaughTriggered);
                 view.TriggerNailongLaugh();
+                DelayOnce(Duration{300}, [this, w] {
+                    Transition(GameState::Result);
+                    view.ShowResult(w);
+                });
             }
-            // Result overlay is pushed after a short delay so the player sees
-            // the laugh animation kick in before the verdict text.
-            DelayOnce(Duration{300}, [this, w] {
-                Transition(GameState::Result);
-                view.ShowResult(w);
-            });
+            else  // Winner::Nailong — user laughed first
+            {
+                Transition(GameState::UserLaughDetected);
+                view.ShowOverlay(L"你笑了！奶龙赢");
+                DelayOnce(Duration{1500}, [this, w] {
+                    view.TriggerNailongLaugh();
+                    Transition(GameState::Result);
+                    view.ShowResult(w);
+                });
+            }
         }
 
         void DeclareInvalid()
