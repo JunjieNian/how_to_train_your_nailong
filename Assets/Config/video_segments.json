@@ -1,7 +1,7 @@
 {
   "_comment": "Frame-level segmentation of how_to_train_your_nailong.mp4. Times are milliseconds from t=0 of the original mp4. Filled by tools/probe_segments.py and consumed by Media/VideoController.",
-  "source": "ms-appx:///Assets/Video/how_to_train_your_nailong.mp4",
-  "source_h264_fallback": "ms-appx:///Assets/Video/how_to_train_your_nailong_h264.mp4",
+  "source": "ms-appx:///Assets/Video/how_to_train_your_nailong_h264.mp4",
+  "source_hevc_original": "ms-appx:///Assets/Video/how_to_train_your_nailong.mp4",
   "reverse_source": "ms-appx:///Assets/Video/how_to_train_your_nailong_reverse.mp4",
 
   "fps": 30.0,
@@ -9,8 +9,9 @@
   "frame_count": 462,
   "width": 1080,
   "height": 1474,
-  "source_codec": "hevc",
+  "source_codec": "h264",
   "reverse_codec": "h264",
+  "reverse_kind": "stare_segment_only",
 
   "stare_start_ms": 0,
   "stare_end_ms": 1000,
@@ -26,7 +27,8 @@
     "laugh_segment_end_ms": "End of the laugh playback. null = play until natural end of file.",
     "pause_after_stare_ms_range": "Hold-on-last-frame duration (uniform random) at the end of forward stare, before reverse begins.",
     "pause_before_stare_ms_range": "Hold-on-first-frame duration (uniform random) at the end of reverse stare, before next forward begins.",
-    "reverse_source": "Pre-generated reverse video produced by tools/make_reverse_video.sh. MediaPlayer cannot reverse natively.",
-    "source_h264_fallback": "Same content as source but re-encoded to H.264 (audio preserved). Use when target Windows machine lacks the HEVC Video Extension."
+    "reverse_source": "Pre-generated reverse video. Now contains ONLY the stare segment reversed (~1s, no audio) instead of the whole 15.4s clip — see tools/make_reverse_video.sh for why this matters at first source-swap.",
+    "source_hevc_original": "Untouched HEVC original from upstream. Currently unused at runtime; kept on disk for reference / fallback. Switch source to this URI if you re-encode and want HEVC.",
+    "reverse_kind": "Documents what reverse_source contains: 'stare_segment_only' (current) plays 0 → stare_duration with no seek; 'full_clip' (legacy) requires VideoController to seek to (duration - stare_end_ms)."
   }
 }

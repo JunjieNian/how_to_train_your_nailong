@@ -210,29 +210,28 @@ namespace how_to_train_your_nailong::Media
                          [this] { EnterReverse(); });
         }
 
-        // Length of the reverse video. Prefer the value baked into
-        // video_segments.json so we don't depend on MediaPlayer.NaturalDuration
-        // having resolved yet (it returns 0 until MediaOpened fires, which
-        // races with EnterReverse on the very first cycle).
-        Ms ReverseTotal() const
+        // Length of the stare segment, used as the EnterReverse playback
+        // target. The reverse asset is now exactly the stare segment in
+        // reverse, so we simply play 0 -> stare_duration without any seek
+        // arithmetic — this avoids the "MediaPlayer leaks the first frames
+        // of the new source before the seek lands" glitch that was visible
+        // on the very first cycle.
+        Ms StareDuration() const noexcept
         {
-            if (segments.duration_ms.count() > 0) return segments.duration_ms;
-            const Ms nat = FromTimeSpan(player.NaturalDuration());
-            return nat.count() > 0 ? nat : segments.stare_end_ms;
+            const Ms d = segments.stare_end_ms - segments.stare_start_ms;
+            return d.count() > 0 ? d : Ms{1000};
         }
 
         void EnterReverse()
         {
             phase = CyclePhase::Reverse;
             player.Source(reverse_source);
-            // In the reverse file, the moment that visually corresponds to
-            // forward time T is at (duration - T). We want to play the segment
-            // that visually goes from stare_end → stare_start, i.e. file time
-            // (duration - stare_end) → (duration - stare_start).
-            const Ms total = ReverseTotal();
-            Ms start_in_reverse = total - segments.stare_end_ms;
-            if (start_in_reverse.count() < 0) start_in_reverse = Ms{0};
-            player.Position(ToTimeSpan(start_in_reverse));
+            // Reverse asset == stare segment reversed. No seek needed:
+            // playing it from t=0 visually shows stare_end → stare_start.
+            // Even if MediaPlayer leaks first frames before Play() takes
+            // hold, those leaked frames are still the correct stare-loop
+            // imagery (no longer the END of the laugh as before).
+            player.Position(ToTimeSpan(Ms{0}));
             player.Play();
             poll_timer.Start();
         }
@@ -278,9 +277,9 @@ namespace how_to_train_your_nailong::Media
                 break;
             case CyclePhase::Reverse:
             {
-                const Ms total = ReverseTotal();
-                const Ms target = total - segments.stare_start_ms;
-                if (pos >= target) EnterHoldStart();
+                // Reverse asset is the stare segment reversed and starts at
+                // t=0, so we just need to detect end-of-stare-duration.
+                if (pos >= StareDuration()) EnterHoldStart();
                 break;
             }
             default:
