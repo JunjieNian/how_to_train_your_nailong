@@ -45,6 +45,7 @@ namespace how_to_train_your_nailong::Media
         Ms  pause_after_stare_max{1200};
         Ms  pause_before_stare_min{400};
         Ms  pause_before_stare_max{800};
+        Ms  duration_ms{0};                 // total duration of the source clip; 0 => unknown, fall back to MediaPlayer.NaturalDuration
         double fps{30.0};
 
         // Load from Assets/Config/video_segments.json (relative to package).

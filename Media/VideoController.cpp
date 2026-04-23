@@ -94,6 +94,7 @@ namespace how_to_train_your_nailong::Media
             seg.stare_end_ms            = Ms{static_cast<long long>(N(L"stare_end_ms"))};
             seg.laugh_trigger_frame_ms  = Ms{static_cast<long long>(N(L"laugh_trigger_frame_ms"))};
             seg.laugh_segment_end_ms    = Ms{static_cast<long long>(Ng(L"laugh_segment_end_ms", 0.0))};
+            seg.duration_ms             = Ms{static_cast<long long>(Ng(L"duration_ms", 0.0))};
             seg.fps                     = Ng(L"fps", 30.0);
             Range(L"pause_after_stare_ms_range",  seg.pause_after_stare_min,  seg.pause_after_stare_max);
             Range(L"pause_before_stare_ms_range", seg.pause_before_stare_min, seg.pause_before_stare_max);
@@ -132,6 +133,8 @@ namespace how_to_train_your_nailong::Media
             dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
             player = MediaPlayer();
             player.IsLoopingEnabled(false);   // we own seeking
+            player.AutoPlay(false);           // we own play/pause too — prevents
+                                              // a brief auto-play burst when Source(...) is set during preload
             element.SetMediaPlayer(player);
 
             hold_timer = dispatcher.CreateTimer();
@@ -159,6 +162,16 @@ namespace how_to_train_your_nailong::Media
             using winrt::Windows::Media::Core::MediaSource;
             forward_source = MediaSource::CreateFromUri(Uri{winrt::hstring{segments.source_uri}});
             reverse_source = MediaSource::CreateFromUri(Uri{winrt::hstring{segments.reverse_source_uri}});
+
+            // Preload the forward source so audio routing is established and
+            // NaturalDuration becomes available before BeginStareCycle. Without
+            // this the very first Forward phase plays silently and the first
+            // EnterReverse miscalculates its seek target (NaturalDuration is 0
+            // until MediaOpened fires for the reverse source). AutoPlay(false)
+            // keeps this from briefly showing on screen.
+            player.Source(forward_source);
+            player.Position(ToTimeSpan(segments.stare_start_ms));
+
             configured = true;
         }
 
@@ -197,6 +210,17 @@ namespace how_to_train_your_nailong::Media
                          [this] { EnterReverse(); });
         }
 
+        // Length of the reverse video. Prefer the value baked into
+        // video_segments.json so we don't depend on MediaPlayer.NaturalDuration
+        // having resolved yet (it returns 0 until MediaOpened fires, which
+        // races with EnterReverse on the very first cycle).
+        Ms ReverseTotal() const
+        {
+            if (segments.duration_ms.count() > 0) return segments.duration_ms;
+            const Ms nat = FromTimeSpan(player.NaturalDuration());
+            return nat.count() > 0 ? nat : segments.stare_end_ms;
+        }
+
         void EnterReverse()
         {
             phase = CyclePhase::Reverse;
@@ -205,14 +229,9 @@ namespace how_to_train_your_nailong::Media
             // forward time T is at (duration - T). We want to play the segment
             // that visually goes from stare_end → stare_start, i.e. file time
             // (duration - stare_end) → (duration - stare_start).
-            const Ms dur = Ms{static_cast<long long>(segments.fps > 0
-                ? 0  // we don't strictly need duration here; reverse is the same length, but compute below
-                : 0)};
-            (void)dur;
-            // Use the underlying MediaPlayer's NaturalDuration for length.
-            const auto nat = player.NaturalDuration();
-            const Ms total = FromTimeSpan(nat);
-            const Ms start_in_reverse = total - segments.stare_end_ms;
+            const Ms total = ReverseTotal();
+            Ms start_in_reverse = total - segments.stare_end_ms;
+            if (start_in_reverse.count() < 0) start_in_reverse = Ms{0};
             player.Position(ToTimeSpan(start_in_reverse));
             player.Play();
             poll_timer.Start();
@@ -259,7 +278,7 @@ namespace how_to_train_your_nailong::Media
                 break;
             case CyclePhase::Reverse:
             {
-                const Ms total = FromTimeSpan(player.NaturalDuration());
+                const Ms total = ReverseTotal();
                 const Ms target = total - segments.stare_start_ms;
                 if (pos >= target) EnterHoldStart();
                 break;
