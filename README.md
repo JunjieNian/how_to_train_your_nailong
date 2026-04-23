@@ -1,5 +1,9 @@
 # 驯龙高手 How to Train Your Nailong
 
+<p align="center">
+  <img src="Assets/nailong_laugh.gif" alt="大笑奶龙" width="200" />
+</p>
+
 一个基于 WinUI 3 + C++/WinRT 的**憋笑挑战**桌面小游戏。
 
 你盯着奶龙，摄像头实时检测你的表情——谁先笑，谁就输。奶龙有一个隐藏的"绷不住"倒计时：如果你在倒计时结束前忍住不笑，奶龙会先笑，你赢了；如果你先笑，奶龙赢，然后奶龙也跟着大笑收场。**不管谁赢，奶龙最终都会大笑。**
