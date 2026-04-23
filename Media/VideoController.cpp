@@ -111,13 +111,22 @@ namespace how_to_train_your_nailong::Media
 
     struct VideoController::Impl
     {
-        winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement element{nullptr};
-        winrt::Windows::Media::Playback::MediaPlayer             player{nullptr};
+        enum class Track
+        {
+            Forward,
+            Reverse,
+        };
+
+        winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement forward_element{nullptr};
+        winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement reverse_element{nullptr};
+        winrt::Windows::Media::Playback::MediaPlayer             forward_player{nullptr};
+        winrt::Windows::Media::Playback::MediaPlayer             reverse_player{nullptr};
         winrt::Windows::Media::Core::MediaSource                 forward_source{nullptr};
         winrt::Windows::Media::Core::MediaSource                 reverse_source{nullptr};
 
         VideoSegments segments;
         CyclePhase    phase{CyclePhase::Idle};
+        Track         visible_track{Track::Forward};
         bool          laugh_pending{false};
         bool          configured{false};
 
@@ -127,33 +136,43 @@ namespace how_to_train_your_nailong::Media
         winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer  hold_timer{nullptr};
         winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer  poll_timer{nullptr};
 
-        explicit Impl(winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement el) : element(el)
+        Impl(
+            winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement forward_el,
+            winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement reverse_el)
+            : forward_element(forward_el), reverse_element(reverse_el)
         {
             using namespace winrt::Windows::Media::Playback;
+
             dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-            player = MediaPlayer();
-            player.IsLoopingEnabled(false);   // we own seeking
-            player.AutoPlay(false);           // we own play/pause too — prevents
-                                              // a brief auto-play burst when Source(...) is set during preload
-            element.SetMediaPlayer(player);
+
+            forward_player = MediaPlayer();
+            forward_player.IsLoopingEnabled(false);
+            forward_player.AutoPlay(false);
+            forward_element.SetMediaPlayer(forward_player);
+
+            reverse_player = MediaPlayer();
+            reverse_player.IsLoopingEnabled(false);
+            reverse_player.AutoPlay(false);
+            reverse_player.IsMuted(true);
+            reverse_element.SetMediaPlayer(reverse_player);
+
+            ShowTrack(Track::Forward);
 
             hold_timer = dispatcher.CreateTimer();
             hold_timer.IsRepeating(false);
 
             poll_timer = dispatcher.CreateTimer();
             poll_timer.IsRepeating(true);
-            // Poll position at ~60 Hz. PlaybackSession.PositionChanged fires
-            // on a worker thread; polling on the UI thread sidesteps marshaling
-            // and gives more deterministic timing for the boundary check.
             poll_timer.Interval(std::chrono::milliseconds{16});
             poll_timer.Tick([this](auto&&, auto&&) { OnPoll(); });
         }
 
         ~Impl()
         {
-            if (poll_timer) poll_timer.Stop();
-            if (hold_timer) hold_timer.Stop();
-            if (player)     player.Pause();
+            if (poll_timer)   poll_timer.Stop();
+            if (hold_timer)   hold_timer.Stop();
+            if (forward_player) forward_player.Pause();
+            if (reverse_player) reverse_player.Pause();
         }
 
         void Configure(VideoSegments s)
@@ -163,16 +182,52 @@ namespace how_to_train_your_nailong::Media
             forward_source = MediaSource::CreateFromUri(Uri{winrt::hstring{segments.source_uri}});
             reverse_source = MediaSource::CreateFromUri(Uri{winrt::hstring{segments.reverse_source_uri}});
 
-            // Preload the forward source so audio routing is established and
-            // NaturalDuration becomes available before BeginStareCycle. Without
-            // this the very first Forward phase plays silently and the first
-            // EnterReverse miscalculates its seek target (NaturalDuration is 0
-            // until MediaOpened fires for the reverse source). AutoPlay(false)
-            // keeps this from briefly showing on screen.
-            player.Source(forward_source);
-            player.Position(ToTimeSpan(segments.stare_start_ms));
+            forward_player.Source(forward_source);
+            reverse_player.Source(reverse_source);
 
+            PrimeForwardStart();
+            PrimeReverseStart();
+            ShowTrack(Track::Forward);
             configured = true;
+        }
+
+        winrt::Windows::Media::Playback::MediaPlayer& PlayerFor(Track track) noexcept
+        {
+            return track == Track::Forward ? forward_player : reverse_player;
+        }
+
+        const winrt::Windows::Media::Playback::MediaPlayer& PlayerFor(Track track) const noexcept
+        {
+            return track == Track::Forward ? forward_player : reverse_player;
+        }
+
+        winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement& ElementFor(Track track) noexcept
+        {
+            return track == Track::Forward ? forward_element : reverse_element;
+        }
+
+        void ShowTrack(Track track)
+        {
+            visible_track = track;
+            ElementFor(Track::Forward).Opacity(track == Track::Forward ? 1.0 : 0.0);
+            ElementFor(Track::Reverse).Opacity(track == Track::Reverse ? 1.0 : 0.0);
+
+            // Reverse asset has no useful audio; only the visible forward player
+            // should ever speak.
+            forward_player.IsMuted(track != Track::Forward);
+            reverse_player.IsMuted(true);
+        }
+
+        void PrimeForwardStart()
+        {
+            forward_player.Pause();
+            forward_player.Position(ToTimeSpan(segments.stare_start_ms));
+        }
+
+        void PrimeReverseStart()
+        {
+            reverse_player.Pause();
+            reverse_player.Position(ToTimeSpan(Ms{0}));
         }
 
         Ms RandRange(Ms mn, Ms mx)
@@ -182,22 +237,27 @@ namespace how_to_train_your_nailong::Media
             return Ms{dist(rng)};
         }
 
+        Ms StareDuration() const noexcept
+        {
+            const Ms d = segments.stare_end_ms - segments.stare_start_ms;
+            return d.count() > 0 ? d : Ms{1000};
+        }
+
         // ---- phase transitions -------------------------------------------
 
         void EnterForward()
         {
             phase = CyclePhase::Forward;
-            player.Source(forward_source);
-            player.Position(ToTimeSpan(segments.stare_start_ms));
-            player.Play();
+            PrimeForwardStart();
+            ShowTrack(Track::Forward);
+            forward_player.Play();
             poll_timer.Start();
         }
 
         void EnterHoldEnd()
         {
             phase = CyclePhase::HoldEnd;
-            player.Pause();
-            // Boundary fires here: the user has just been "stared at" once.
+            forward_player.Pause();
             if (on_boundary) on_boundary();
             if (laugh_pending)
             {
@@ -206,41 +266,32 @@ namespace how_to_train_your_nailong::Media
                 return;
             }
             poll_timer.Stop();
+
+            // Prepare the reverse surface while the last forward frame remains
+            // visible, then flip opacity after the configured hold.
+            PrimeReverseStart();
             ScheduleHold(RandRange(segments.pause_after_stare_min, segments.pause_after_stare_max),
                          [this] { EnterReverse(); });
-        }
-
-        // Length of the stare segment, used as the EnterReverse playback
-        // target. The reverse asset is now exactly the stare segment in
-        // reverse, so we simply play 0 -> stare_duration without any seek
-        // arithmetic — this avoids the "MediaPlayer leaks the first frames
-        // of the new source before the seek lands" glitch that was visible
-        // on the very first cycle.
-        Ms StareDuration() const noexcept
-        {
-            const Ms d = segments.stare_end_ms - segments.stare_start_ms;
-            return d.count() > 0 ? d : Ms{1000};
         }
 
         void EnterReverse()
         {
             phase = CyclePhase::Reverse;
-            player.Source(reverse_source);
-            // Reverse asset == stare segment reversed. No seek needed:
-            // playing it from t=0 visually shows stare_end → stare_start.
-            // Even if MediaPlayer leaks first frames before Play() takes
-            // hold, those leaked frames are still the correct stare-loop
-            // imagery (no longer the END of the laugh as before).
-            player.Position(ToTimeSpan(Ms{0}));
-            player.Play();
+            ShowTrack(Track::Reverse);
+            reverse_player.Play();
             poll_timer.Start();
+
+            // Immediately park the hidden forward player back at stare_start so
+            // the next Reverse -> Forward handoff also avoids any source churn.
+            PrimeForwardStart();
         }
 
         void EnterHoldStart()
         {
             phase = CyclePhase::HoldStart;
-            player.Pause();
+            reverse_player.Pause();
             poll_timer.Stop();
+            PrimeForwardStart();
             ScheduleHold(RandRange(segments.pause_before_stare_min, segments.pause_before_stare_max),
                          [this] { EnterForward(); });
         }
@@ -248,12 +299,10 @@ namespace how_to_train_your_nailong::Media
         void EnterLaugh()
         {
             phase = CyclePhase::Laughing;
-            // The cut happens on the same frame we paused on (stare_end == laugh_trigger),
-            // so the user perceives no jump.
-            player.Source(forward_source);
-            player.Position(ToTimeSpan(segments.laugh_trigger_frame_ms));
-            player.Play();
-            poll_timer.Stop();   // no boundary checking during laugh
+            ShowTrack(Track::Forward);
+            forward_player.Position(ToTimeSpan(segments.laugh_trigger_frame_ms));
+            forward_player.Play();
+            poll_timer.Stop();
         }
 
         void ScheduleHold(Ms d, std::function<void()> fn)
@@ -269,31 +318,30 @@ namespace how_to_train_your_nailong::Media
         void OnPoll()
         {
             if (!configured) return;
-            const auto pos = FromTimeSpan(player.Position());
+
+            const auto pos = FromTimeSpan(PlayerFor(visible_track).Position());
             switch (phase)
             {
             case CyclePhase::Forward:
                 if (pos >= segments.stare_end_ms) EnterHoldEnd();
                 break;
             case CyclePhase::Reverse:
-            {
-                // Reverse asset is the stare segment reversed and starts at
-                // t=0, so we just need to detect end-of-stare-duration.
                 if (pos >= StareDuration()) EnterHoldStart();
                 break;
-            }
             default:
                 break;
             }
         }
 
-        std::function<void()> on_boundary;  // mirrors public CycleBoundary
+        std::function<void()> on_boundary;
     };
 
     // ---------------- public surface ---------------------------------------
 
-    VideoController::VideoController(winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement element)
-        : m_impl(std::make_unique<Impl>(element)) {}
+    VideoController::VideoController(
+        winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement forward_element,
+        winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement reverse_element)
+        : m_impl(std::make_unique<Impl>(forward_element, reverse_element)) {}
 
     VideoController::~VideoController() = default;
 
@@ -314,18 +362,20 @@ namespace how_to_train_your_nailong::Media
     {
         if (m_impl->poll_timer) m_impl->poll_timer.Stop();
         if (m_impl->hold_timer) m_impl->hold_timer.Stop();
-        if (m_impl->player)     m_impl->player.Pause();
+        if (m_impl->forward_player) m_impl->forward_player.Pause();
+        if (m_impl->reverse_player) m_impl->reverse_player.Pause();
         if (m_impl->configured)
         {
-            m_impl->player.Source(m_impl->forward_source);
-            m_impl->player.Position(ToTimeSpan(m_impl->segments.stare_start_ms));
+            m_impl->PrimeForwardStart();
+            m_impl->PrimeReverseStart();
+            m_impl->ShowTrack(Impl::Track::Forward);
         }
         m_impl->phase = CyclePhase::Idle;
     }
 
     void VideoController::TriggerLaugh()
     {
-        // Defer the source swap to the next forward-phase boundary so the cut
+        // Defer the handoff to the next forward-phase boundary so the cut
         // happens on the "looking-at-viewer" frame and is visually seamless.
         m_impl->laugh_pending = true;
     }

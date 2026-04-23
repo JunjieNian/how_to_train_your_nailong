@@ -108,7 +108,9 @@ namespace winrt::how_to_train_your_nailong::implementation
         m_engine = std::make_unique<::how_to_train_your_nailong::Game::GameEngine>(*m_view_bridge);
         m_engine->SetDifficulty(m_difficulty);
 
-        m_video = std::make_unique<::how_to_train_your_nailong::Media::VideoController>(VideoPlayer());
+        m_video = std::make_unique<::how_to_train_your_nailong::Media::VideoController>(
+            ForwardVideoPlayer(),
+            ReverseVideoPlayer());
         // Load segment timings from the packaged config; fall back to the
         // URI defaults baked into VideoSegments if loading fails.
         auto segments = ::how_to_train_your_nailong::Media::VideoSegments::LoadFromPackage(

@@ -1,6 +1,6 @@
 #pragma once
 //
-// VideoController.h — drives the Nailong MediaPlayer through the four-phase
+// VideoController.h — drives the Nailong video through the four-phase
 // stare cycle and seamlessly into the laugh segment.
 //
 // Phase sequence (one cycle):
@@ -11,12 +11,17 @@
 //                        reverse source — visually "stare_end_ms -> stare_start_ms"
 //   Phase 4  HoldStart   pause on first stare frame (random duration)
 //
+// Implementation detail: the controller keeps two MediaPlayerElements /
+// MediaPlayers alive at once — one pinned to the forward source and one pinned
+// to the reverse source. Runtime transitions only swap opacity between the two
+// preloaded surfaces; we no longer churn MediaPlayer.Source mid-round, which
+// avoids the occasional black frame seen at Forward <-> Reverse boundaries.
+//
 // On each Phase 1 -> Phase 2 boundary, VideoController fires CycleBoundary(),
 // which GameEngine uses to decide whether to call TriggerLaugh(). When
-// TriggerLaugh() is called, the controller switches the source back to the
-// forward video and plays from laugh_trigger_frame_ms to laugh_segment_end_ms
-// (or natural end). The cut happens on the same frame the cycle paused on,
-// so the user perceives no jump.
+// TriggerLaugh() is called, the controller resumes the forward player from
+// laugh_trigger_frame_ms to laugh_segment_end_ms (or natural end). The cut
+// happens on the same frame the cycle paused on, so the user perceives no jump.
 //
 // Threading: all public methods on UI thread.
 //
@@ -65,7 +70,9 @@ namespace how_to_train_your_nailong::Media
     class VideoController
     {
     public:
-        explicit VideoController(winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement element);
+        VideoController(
+            winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement forward_element,
+            winrt::Microsoft::UI::Xaml::Controls::MediaPlayerElement reverse_element);
         ~VideoController();
 
         VideoController(const VideoController&)            = delete;
@@ -81,8 +88,8 @@ namespace how_to_train_your_nailong::Media
 
         // Cut from current cycle into the laugh segment. Safe to call from
         // any phase; the controller waits until the next "looking-at-viewer"
-        // frame (Phase 1 end) before swapping sources, so the transition is
-        // visually seamless.
+        // frame (Phase 1 end) before handing off to the forward player, so the
+        // transition is visually seamless.
         void TriggerLaugh();
 
         // Fired on every Phase 1 -> Phase 2 transition (i.e. the moment the

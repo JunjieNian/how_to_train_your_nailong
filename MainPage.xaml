@@ -11,13 +11,27 @@
 
     <Grid x:Name="RootGrid" Background="Black">
 
-        <!-- Layer 0: Nailong video, full-bleed letterboxed on black. -->
-        <MediaPlayerElement x:Name="VideoPlayer"
+        <!-- Layer 0: two stacked video surfaces.
+             Keep both alive and swap opacity instead of switching a single
+             MediaPlayer's Source at runtime; this avoids transient black
+             frames while the decoder rebinds. -->
+        <MediaPlayerElement x:Name="ForwardVideoPlayer"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             Stretch="Uniform"
                             AreTransportControlsEnabled="False"
-                            Background="Transparent" />
+                            IsHitTestVisible="False"
+                            Background="Transparent"
+                            Opacity="1" />
+
+        <MediaPlayerElement x:Name="ReverseVideoPlayer"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Stretch="Uniform"
+                            AreTransportControlsEnabled="False"
+                            IsHitTestVisible="False"
+                            Background="Transparent"
+                            Opacity="0" />
 
         <!-- Layer 1: centered overlay text (countdown / hints / result).
              IsHitTestVisible=False so clicks pass through to the controls below. -->
