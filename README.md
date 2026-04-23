@@ -1,7 +1,7 @@
 # 驯龙高手 How to Train Your Nailong
 
 <p align="center">
-  <img src="Assets/nailong_laugh.gif" alt="大笑奶龙" width="200" />
+  <img src="Assets/nailong_laugh.gif" alt="大笑奶龙" width="500" />
 </p>
 
 一个基于 WinUI 3 + C++/WinRT 的**憋笑挑战**桌面小游戏。
