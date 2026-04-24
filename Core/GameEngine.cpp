@@ -181,7 +181,7 @@ namespace how_to_train_your_nailong::Game
             //
             // Nailong wins (user laughed first):
             //   t=0     show "你笑了！奶龙赢" overlay (let user read it)
-            //   t+1500  TriggerNailongLaugh → nailong also breaks into laughter
+            //   t+500   TriggerNailongLaugh → nailong also breaks into laughter
             //           re-enable controls (user can reset / start a new round)
             //
             // In both cases the stare cycle keeps running in the background
@@ -201,7 +201,7 @@ namespace how_to_train_your_nailong::Game
             {
                 Transition(GameState::UserLaughDetected);
                 view.ShowOverlay(L"你笑了！奶龙赢");
-                DelayOnce(Duration{1500}, [this, w] {
+                DelayOnce(Duration{500}, [this, w] {
                     view.TriggerNailongLaugh();
                     Transition(GameState::Result);
                     view.ShowResult(w);
