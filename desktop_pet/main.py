@@ -27,13 +27,54 @@ Prerequisites:
 import os
 import sys
 
-# ── Anaconda DLL conflict fix ──────────────────────────────────────
-# Anaconda puts its own (older) Qt DLLs in Library\bin on PATH, which
-# shadows PySide6's bundled Qt and causes "DLL load failed".  Strip
-# those directories before PySide6 is imported.
+# ── Anaconda Qt DLL conflict fix ───────────────────────────────────
+# Anaconda's `conda activate` registers its own Qt DLLs via the Windows
+# AddDllDirectory API.  These are ABI-incompatible with pip-installed
+# PySide6 and cause "DLL load failed: 找不到指定的程序".  Cleaning PATH
+# alone is NOT enough (Python 3.8+ ignores PATH for DLL search).
+#
+# Fix: pre-load PySide6's own Qt6Core.dll etc. by absolute path before
+# any `import PySide6` triggers the default (broken) DLL search.
 if sys.platform == "win32":
+    import ctypes
+    import importlib.util
+
+    _spec = importlib.util.find_spec("PySide6")
+    if _spec and _spec.submodule_search_locations:
+        _psd = _spec.submodule_search_locations[0]
+
+        # Locate the directory that contains Qt6Core.dll
+        _qt_dir = None
+        for _sub in ("", "Qt6\\bin", "Qt\\bin"):
+            _candidate = os.path.join(_psd, _sub) if _sub else _psd
+            if os.path.isfile(os.path.join(_candidate, "Qt6Core.dll")):
+                _qt_dir = _candidate
+                break
+
+        if _qt_dir:
+            # 1) add_dll_directory so transitive deps resolve here too
+            try:
+                os.add_dll_directory(_qt_dir)
+            except OSError:
+                pass
+
+            # 2) pre-load core Qt DLLs by absolute path — once loaded,
+            #    Windows will reuse them instead of finding Anaconda's
+            for _dll in (
+                "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll",
+                "Qt6Network.dll", "Qt6Multimedia.dll",
+                "Qt6DBus.dll", "Qt6OpenGL.dll",
+            ):
+                _path = os.path.join(_qt_dir, _dll)
+                if os.path.isfile(_path):
+                    try:
+                        ctypes.cdll.LoadLibrary(_path)
+                    except OSError:
+                        pass
+
+    # also strip Anaconda from PATH as a belt-and-suspenders measure
     _clean = [p for p in os.environ.get("PATH", "").split(";")
-              if "Library\\bin" not in p]
+              if "library\\bin" not in p.lower()]
     os.environ["PATH"] = ";".join(_clean)
 
 from pathlib import Path
