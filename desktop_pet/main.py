@@ -100,7 +100,8 @@ from smile_detector import SmileDetector, SmileSample as DetectorSmileSample
 # ── path resolution (script vs frozen .exe) ───────────────────────
 _FROZEN = getattr(sys, "frozen", False)
 if _FROZEN:
-    _BASE = Path(sys.executable).parent
+    # PyInstaller 6.x --onedir puts data in _internal/ (sys._MEIPASS)
+    _BASE = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
 else:
     _BASE = Path(__file__).parent
 
