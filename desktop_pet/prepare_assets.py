@@ -147,22 +147,43 @@ def extract_audio(
 
 
 def clamp_alpha(img):
-    """Post-process alpha: push near-opaque pixels to fully opaque.
+    """Post-process alpha: kill halo, push body to fully opaque.
 
-    rembg often produces alpha ~230 for the character body instead of 255,
-    making the sprite look slightly transparent.  This remaps alpha so that
-    values above a threshold become 255 while keeping soft edges intact.
+    rembg produces:
+      - body pixels at alpha ~230 (should be 255)
+      - halo/fringe at alpha 1-40 (should be 0 — appears as white edge)
+
+    Strategy: alpha < 30 → 0 (kill halo), alpha > 160 → 255, linear between.
     """
     import numpy as np
 
     arr = np.array(img)
     a = arr[:, :, 3].astype(np.float32)
-    threshold = 180
-    a = np.where(a > threshold, 255, a * 255 / threshold)
+    lo, hi = 30, 160
+    a = np.where(a < lo, 0, np.where(a > hi, 255, (a - lo) * 255 / (hi - lo)))
     arr[:, :, 3] = np.clip(a, 0, 255).astype(np.uint8)
     from PIL import Image
 
     return Image.fromarray(arr, "RGBA")
+
+
+def trim_transparent(img, margin: int = 2):
+    """Crop to bounding box of non-transparent content + small margin."""
+    import numpy as np
+
+    arr = np.array(img)
+    a = arr[:, :, 3]
+    rows = np.any(a > 0, axis=1)
+    cols = np.any(a > 0, axis=0)
+    if not rows.any():
+        return img
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    rmin = max(0, rmin - margin)
+    rmax = min(arr.shape[0] - 1, rmax + margin)
+    cmin = max(0, cmin - margin)
+    cmax = min(arr.shape[1] - 1, cmax + margin)
+    return img.crop((cmin, rmin, cmax + 1, rmax + 1))
 
 
 def process_frames(frames: list[Path], height: int, use_rembg: bool):
@@ -187,6 +208,7 @@ def process_frames(frames: list[Path], height: int, use_rembg: bool):
         if rembg_fn is not None:
             img = rembg_fn(img)
             img = clamp_alpha(img)
+            img = trim_transparent(img, margin=2)
 
         img.save(path)
         print(f"\r  Processing: {i}/{total} ({i * 100 // total}%)", end="", flush=True)
