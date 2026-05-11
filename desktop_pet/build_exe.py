@@ -101,6 +101,16 @@ def build(name: str = "驯龙高手") -> None:
         "--hidden-import", "smile_detector",
     ]
 
+    # Exclude heavy packages we don't use (avoids Anaconda bloat & conflicts)
+    for mod in (
+        "matplotlib", "scipy", "pandas", "tensorflow", "torch",
+        "IPython", "notebook", "jupyter", "PIL.ImageTk", "tkinter",
+        "PyQt5", "PyQt6", "wx", "gtk", "gi",
+        "setuptools", "pkg_resources", "pytest",
+        "sounddevice", "h5py", "sympy", "docutils", "sphinx",
+    ):
+        cmd += ["--exclude-module", mod]
+
     cmd.append("main.py")
 
     print(f"\n[BUILD] Running PyInstaller...")
