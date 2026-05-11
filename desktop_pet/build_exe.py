@@ -112,8 +112,9 @@ def build(name: str = "驯龙高手") -> None:
     ]
 
     # Exclude heavy packages we don't use (avoids Anaconda bloat & conflicts)
+    # NOTE: matplotlib is kept because mediapipe imports it internally
     for mod in (
-        "matplotlib", "scipy", "pandas", "tensorflow", "torch",
+        "scipy", "pandas", "tensorflow", "torch",
         "IPython", "notebook", "jupyter", "PIL.ImageTk", "tkinter",
         "PyQt5", "PyQt6", "wx", "gtk", "gi",
         "setuptools", "pkg_resources", "pytest",
