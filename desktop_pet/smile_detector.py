@@ -129,7 +129,9 @@ class SmileDetector(QThread):
                 from mediapipe.tasks import python as mp_python  # type: ignore
                 from mediapipe.tasks.python import vision  # type: ignore
 
-                base = mp_python.BaseOptions(model_asset_path=self._model_path)
+                # Read model into memory to avoid Unicode path issues on Windows
+                model_data = open(self._model_path, "rb").read()
+                base = mp_python.BaseOptions(model_asset_buffer=model_data)
                 opts = vision.FaceLandmarkerOptions(
                     base_options=base,
                     running_mode=vision.RunningMode.VIDEO,
