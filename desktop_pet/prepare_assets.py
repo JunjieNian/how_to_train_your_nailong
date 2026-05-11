@@ -216,15 +216,19 @@ def process_frames(frames: list[Path], height: int, use_rembg: bool):
 
 
 def make_icon(src_frame: Path, out_path: Path, size: int = 64):
+    """Crop top half of frame (head) → square → resize for tray icon."""
     from PIL import Image
 
     img = Image.open(src_frame).convert("RGBA")
     w, h = img.size
-    side = min(w, h)
-    left, top = (w - side) // 2, (h - side) // 2
-    img = img.crop((left, top, left + side, top + side))
-    img = img.resize((size, size), Image.LANCZOS)
-    img.save(out_path)
+    # Crop top half to show the head
+    img = img.crop((0, 0, w, h // 2))
+    cw, ch = img.size
+    side = max(cw, ch)
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(img, ((side - cw) // 2, (side - ch) // 2))
+    square = square.resize((size, size), Image.LANCZOS)
+    square.save(out_path)
 
 
 def copy_configs():

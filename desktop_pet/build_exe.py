@@ -43,7 +43,7 @@ def check_prereqs() -> bool:
 
 
 def make_ico() -> Path | None:
-    """Convert idle/0010.png → icon.ico for the exe and shortcut."""
+    """Convert top half of idle/0010.png → icon.ico (shows nailong head)."""
     png = HERE / "assets" / "idle" / "0010.png"
     ico = HERE / "assets" / "icon.ico"
     if ico.exists():
@@ -53,14 +53,17 @@ def make_ico() -> Path | None:
     try:
         from PIL import Image
         img = Image.open(png).convert("RGBA")
-        # Crop to square (center), then resize to standard icon sizes
         w, h = img.size
-        side = min(w, h)
-        left, top = (w - side) // 2, (h - side) // 2
-        img = img.crop((left, top, left + side, top + side))
+        # Crop top half to show the head
+        img = img.crop((0, 0, w, h // 2))
+        # Pad to square
+        cw, ch = img.size
+        side = max(cw, ch)
+        square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        square.paste(img, ((side - cw) // 2, (side - ch) // 2))
         sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)]
-        img.save(ico, format="ICO", sizes=sizes)
-        print(f"[OK] Created {ico.name} from idle/0010.png")
+        square.save(ico, format="ICO", sizes=sizes)
+        print(f"[OK] Created {ico.name} (head crop from idle/0010.png)")
         return ico
     except Exception as e:
         print(f"[WARN] Could not create .ico: {e}")
