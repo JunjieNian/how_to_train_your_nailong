@@ -1,7 +1,7 @@
 # 驯龙高手 How to Train Your Nailong
 
 <p align="center">
-  <img src="desktop_pet/assets/idle/0010.png" alt="奶龙" height="200" />
+  <img src="Assets/nailong_laugh.gif" alt="大笑奶龙" width="500" />
 </p>
 
 **憋笑挑战**桌面小游戏。你盯着奶龙，摄像头实时检测你的表情——谁先笑，谁就输。
