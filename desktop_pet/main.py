@@ -356,11 +356,16 @@ class DesktopPet(QWidget):
     def _on_detector_lost(self, reason: str) -> None:
         self._cleanup_detector()
         self._engine.reset()
-        self._auto_start = False  # don't keep retrying
-        # Show actual error so user can diagnose
-        short = reason[:60] if reason else "unknown"
-        self.show_overlay(f"检测失败: {short}")
-        QTimer.singleShot(8000, self._fallback_to_ambient)
+        self._auto_start = False
+        # Write full error to log file next to exe/script
+        log_path = _BASE / "error.log" if not _FROZEN else Path(sys.executable).parent / "error.log"
+        try:
+            log_path.write_text(f"detector_lost: {reason}\n", encoding="utf-8")
+        except Exception:
+            pass
+        short = reason[:120] if reason else "unknown"
+        self.show_overlay(f"检测失败:\n{short}")
+        QTimer.singleShot(15000, self._fallback_to_ambient)
 
     def _fallback_to_ambient(self) -> None:
         self.clear_overlay()
