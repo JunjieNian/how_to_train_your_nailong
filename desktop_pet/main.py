@@ -86,6 +86,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QLabel,
     QMenu,
+    QPushButton,
     QSystemTrayIcon,
 )
 
@@ -173,6 +174,26 @@ class DesktopPet(QWidget):
         self._overlay_label.setFixedWidth(self.width())
         self._overlay_label.move(0, 0)
         self._overlay_label.hide()
+
+        # ── close button (always visible, top-right corner) ───
+        self._close_btn = QPushButton("×", self)
+        self._close_btn.setFixedSize(18, 18)
+        self._close_btn.move(self.width() - 20, self._overlay_height + 2)
+        self._close_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: rgba(0,0,0,120);"
+            "  color: white;"
+            "  border: none;"
+            "  border-radius: 9px;"
+            "  font-size: 12pt;"
+            "  font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "  background: rgba(200,50,50,180);"
+            "}"
+        )
+        self._close_btn.clicked.connect(self._quit)
+        self._close_btn.raise_()
 
         # ── video controller ───────────────────────────────────
         stare_audio = ASSETS / "stare.wav"
