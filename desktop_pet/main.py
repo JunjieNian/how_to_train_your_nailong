@@ -357,8 +357,10 @@ class DesktopPet(QWidget):
         self._cleanup_detector()
         self._engine.reset()
         self._auto_start = False  # don't keep retrying
-        self.show_overlay("摄像头不可用\n右键开始挑战")
-        QTimer.singleShot(3000, self._fallback_to_ambient)
+        # Show actual error so user can diagnose
+        short = reason[:60] if reason else "unknown"
+        self.show_overlay(f"检测失败: {short}")
+        QTimer.singleShot(8000, self._fallback_to_ambient)
 
     def _fallback_to_ambient(self) -> None:
         self.clear_overlay()
