@@ -372,9 +372,9 @@ tools/smile_sidecar/venv/
 tools/smile_sidecar/.venv/
 
 # Downloaded MediaPipe model assets (large, fetched at setup time)
-*.task
 tools/smile_sidecar/face_landmarker.task
 tools/smile_sidecar/models/
+# desktop_pet/ copy is tracked (bundled for offline use)
 
 # Jupyter scratch / IDE leftovers
 .ipynb_checkpoints/

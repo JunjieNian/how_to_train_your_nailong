@@ -3,7 +3,7 @@ PyQt6>=6.6
 
 # Asset preparation (prepare_assets.py)
 Pillow>=10.0
-rembg>=2.0
+rembg[cpu]>=2.0
 imageio-ffmpeg>=0.5
 
 # Smile detection (smile_detector.py)
