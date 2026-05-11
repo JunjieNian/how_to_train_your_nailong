@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""
+Build the Nailong desktop pet into a standalone Windows .exe application.
+
+Usage:
+    python build_exe.py           # build to dist/驯龙高手/
+    python build_exe.py --name X  # custom name
+
+Prerequisites:
+    pip install pyinstaller
+    Run setup_windows.bat first (or prepare_assets.py + download model)
+"""
+
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def check_prereqs() -> bool:
+    ok = True
+
+    # Check PyInstaller
+    try:
+        import PyInstaller  # noqa: F401
+    except ImportError:
+        print("[ERROR] PyInstaller not installed. Run: pip install pyinstaller")
+        ok = False
+
+    # Check assets
+    if not (HERE / "assets" / "idle").is_dir():
+        print("[ERROR] Assets not found. Run: python prepare_assets.py")
+        ok = False
+
+    # Check model
+    if not (HERE / "face_landmarker.task").exists():
+        print("[WARN] face_landmarker.task not found — game will run without camera")
+
+    return ok
+
+
+def make_ico() -> Path | None:
+    """Convert idle/0010.png → icon.ico for the exe and shortcut."""
+    png = HERE / "assets" / "idle" / "0010.png"
+    ico = HERE / "assets" / "icon.ico"
+    if ico.exists():
+        ico.unlink()  # always rebuild from source frame
+    if not png.exists():
+        return None
+    try:
+        from PIL import Image
+        img = Image.open(png).convert("RGBA")
+        # Crop to square (center), then resize to standard icon sizes
+        w, h = img.size
+        side = min(w, h)
+        left, top = (w - side) // 2, (h - side) // 2
+        img = img.crop((left, top, left + side, top + side))
+        sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)]
+        img.save(ico, format="ICO", sizes=sizes)
+        print(f"[OK] Created {ico.name} from idle/0010.png")
+        return ico
+    except Exception as e:
+        print(f"[WARN] Could not create .ico: {e}")
+        return None
+
+
+def build(name: str = "驯龙高手") -> None:
+    if not check_prereqs():
+        sys.exit(1)
+
+    ico = make_ico()
+
+    cmd = [
+        sys.executable, "-m", "PyInstaller",
+        "--onedir",
+        "--windowed",
+        "--noconfirm",
+        "--name", name,
+        # Bundle assets
+        "--add-data", f"assets{';' if sys.platform == 'win32' else ':'}assets",
+    ]
+
+    # Bundle model if present
+    model = HERE / "face_landmarker.task"
+    if model.exists():
+        sep = ";" if sys.platform == "win32" else ":"
+        cmd += ["--add-data", f"face_landmarker.task{sep}."]
+
+    if ico:
+        cmd += ["--icon", str(ico)]
+
+    # Hidden imports that PyInstaller might miss
+    cmd += [
+        "--hidden-import", "PyQt6.QtMultimedia",
+        "--hidden-import", "config",
+        "--hidden-import", "game_engine",
+        "--hidden-import", "video_controller",
+        "--hidden-import", "smile_detector",
+    ]
+
+    cmd.append("main.py")
+
+    print(f"\n[BUILD] Running PyInstaller...")
+    print(f"  Command: {' '.join(cmd)}\n")
+
+    result = subprocess.run(cmd, cwd=str(HERE))
+    if result.returncode != 0:
+        print("\n[ERROR] Build failed")
+        sys.exit(1)
+
+    dist = HERE / "dist" / name
+    print(f"\n{'='*50}")
+    print(f"  Build complete!")
+    print(f"  Output: {dist}")
+    print(f"  Exe:    {dist / (name + '.exe')}")
+    print(f"{'='*50}")
+    print(f"\nTo run: double-click {name}.exe in {dist}")
+    print(f"To distribute: zip the entire '{name}' folder")
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Build Nailong desktop pet .exe")
+    ap.add_argument("--name", default="驯龙高手", help="Application name (default: 驯龙高手)")
+    args = ap.parse_args()
+    build(name=args.name)
+
+
+if __name__ == "__main__":
+    main()

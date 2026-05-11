@@ -1,0 +1,43 @@
+{
+  "_comment": "Game difficulty parameters consumed by Core/GameEngine. Adjust freely without rebuild — file is loaded at runtime from Assets.",
+  "default_mode": "normal",
+
+  "modes": {
+    "easy": {
+      "nailong_laugh_min_ms": 8000,
+      "nailong_laugh_max_ms": 18000,
+      "calibration_ms": 3000,
+      "smile_threshold": 0.30,
+      "consecutive_frames_to_confirm": 4,
+      "lost_face_grace_ms": 2000,
+      "lost_face_invalid_ms": 7000
+    },
+    "normal": {
+      "nailong_laugh_min_ms": 5000,
+      "nailong_laugh_max_ms": 12000,
+      "calibration_ms": 2500,
+      "smile_threshold": 0.28,
+      "consecutive_frames_to_confirm": 4,
+      "lost_face_grace_ms": 1500,
+      "lost_face_invalid_ms": 5000
+    },
+    "hard": {
+      "nailong_laugh_min_ms": 3000,
+      "nailong_laugh_max_ms": 8000,
+      "calibration_ms": 2000,
+      "smile_threshold": 0.25,
+      "consecutive_frames_to_confirm": 3,
+      "lost_face_grace_ms": 1000,
+      "lost_face_invalid_ms": 4000
+    }
+  },
+
+  "_field_doc": {
+    "nailong_laugh_*_ms": "Inclusive range from which the per-round hidden deadline is sampled uniformly. When deadline elapses without the user laughing, Nailong laughs first and the user wins.",
+    "calibration_ms": "Time spent recording neutral-face baseline before countdown.",
+    "smile_threshold": "Final score threshold AFTER neutral-baseline subtraction. Tune per detector.",
+    "consecutive_frames_to_confirm": "Number of recent frames that must all exceed threshold for is_smiling=true.",
+    "lost_face_grace_ms": "Below this, lost face is ignored. Above, game pauses and shows '奶龙看不见你了'.",
+    "lost_face_invalid_ms": "Above this, round ends as INVALID."
+  }
+}

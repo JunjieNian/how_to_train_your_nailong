@@ -1,0 +1,12 @@
+# Desktop pet app
+PyQt6>=6.6
+
+# Asset preparation (prepare_assets.py)
+Pillow>=10.0
+rembg>=2.0
+imageio-ffmpeg>=0.5
+
+# Smile detection (smile_detector.py)
+opencv-python>=4.10
+mediapipe>=0.10.21
+numpy>=1.26
