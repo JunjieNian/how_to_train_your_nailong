@@ -24,7 +24,18 @@ Prerequisites:
     3. Download face_landmarker.task into this directory
 """
 
+import os
 import sys
+
+# ── Anaconda DLL conflict fix ──────────────────────────────────────
+# Anaconda puts its own (older) Qt DLLs in Library\bin on PATH, which
+# shadows PySide6's bundled Qt and causes "DLL load failed".  Strip
+# those directories before PySide6 is imported.
+if sys.platform == "win32":
+    _clean = [p for p in os.environ.get("PATH", "").split(";")
+              if "Library\\bin" not in p]
+    os.environ["PATH"] = ";".join(_clean)
+
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QSize
