@@ -94,7 +94,7 @@ def build(name: str = "驯龙高手") -> None:
 
     # Hidden imports that PyInstaller might miss
     cmd += [
-        "--hidden-import", "PyQt6.QtMultimedia",
+        "--hidden-import", "PySide6.QtMultimedia",
         "--hidden-import", "config",
         "--hidden-import", "game_engine",
         "--hidden-import", "video_controller",

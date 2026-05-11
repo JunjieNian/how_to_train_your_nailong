@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass
 from typing import Protocol
 
-from PyQt6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from config import DifficultyParams
 

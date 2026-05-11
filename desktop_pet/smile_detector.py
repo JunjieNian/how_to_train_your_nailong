@@ -18,7 +18,7 @@ import time
 import threading
 from dataclasses import dataclass
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 log = logging.getLogger("smile_detector")
 
@@ -42,9 +42,9 @@ class SmileDetector(QThread):
         detector_lost(str)        — emitted on camera/model error
     """
 
-    sample_ready = pyqtSignal(object)
-    detector_ready = pyqtSignal()
-    detector_lost = pyqtSignal(str)
+    sample_ready = Signal(object)
+    detector_ready = Signal()
+    detector_lost = Signal(str)
 
     def __init__(
         self,

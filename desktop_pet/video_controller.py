@@ -20,15 +20,15 @@ import random
 from pathlib import Path
 from typing import Callable
 
-from PyQt6.QtCore import QTimer, QUrl
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QLabel
+from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QLabel
 
 from config import VideoSegments
 
 # Optional: audio via QMediaPlayer (may not be available on all platforms)
 try:
-    from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+    from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
     _HAS_AUDIO = True
 except ImportError:
     _HAS_AUDIO = False
