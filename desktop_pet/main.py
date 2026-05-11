@@ -333,7 +333,15 @@ class DesktopPet(QWidget):
         self._engine.on_detector_ready()
 
     def _on_detector_lost(self, reason: str) -> None:
-        self._engine.on_detector_lost(reason)
+        self._cleanup_detector()
+        self._engine.reset()
+        self._auto_start = False  # don't keep retrying
+        self.show_overlay("摄像头不可用\n右键开始挑战")
+        QTimer.singleShot(3000, self._fallback_to_ambient)
+
+    def _fallback_to_ambient(self) -> None:
+        self.clear_overlay()
+        self._video.start_ambient()
         self._set_controls_enabled(True)
 
     def _on_sample(self, s: DetectorSmileSample) -> None:
@@ -450,11 +458,13 @@ class DesktopPet(QWidget):
         self._cleanup_detector()
         QApplication.quit()
 
-    # ── mouse interaction ──────────────────────────────────────
+    # ── mouse & keyboard interaction ─────────────────────────
 
     def mousePressEvent(self, ev) -> None:
         if ev.button() == Qt.MouseButton.LeftButton:
             self._drag_origin = ev.globalPosition().toPoint() - self.pos()
+        elif ev.button() == Qt.MouseButton.MiddleButton:
+            self._quit()
 
     def mouseMoveEvent(self, ev) -> None:
         if self._drag_origin is not None and ev.buttons() & Qt.MouseButton.LeftButton:
@@ -466,6 +476,10 @@ class DesktopPet(QWidget):
     def contextMenuEvent(self, ev) -> None:
         menu = self._build_menu()
         menu.exec(ev.globalPosition().toPoint())
+
+    def keyPressEvent(self, ev) -> None:
+        if ev.key() == Qt.Key.Key_Escape or ev.key() == Qt.Key.Key_Q:
+            self._quit()
 
 
 # ── entry point ───────────────────────────────────────────────────

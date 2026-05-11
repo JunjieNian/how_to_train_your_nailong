@@ -104,6 +104,13 @@ def build(name: str = "驯龙高手") -> None:
         "--hidden-import", "smile_detector",
     ]
 
+    # Collect ALL files for mediapipe & cv2 (native binaries, data, etc.)
+    # Without this, mediapipe fails at runtime in the frozen exe.
+    cmd += [
+        "--collect-all", "mediapipe",
+        "--collect-all", "cv2",
+    ]
+
     # Exclude heavy packages we don't use (avoids Anaconda bloat & conflicts)
     for mod in (
         "matplotlib", "scipy", "pandas", "tensorflow", "torch",
