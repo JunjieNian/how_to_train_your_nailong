@@ -146,25 +146,30 @@ class DesktopPet(QWidget):
         else:
             sprite_size = QSize(180, 256)
 
-        # Widget size: sprite + room for overlay above
-        overlay_height = 50
-        self.setFixedSize(sprite_size.width(), sprite_size.height() + overlay_height)
+        # Widget size: sprite + room for overlay floating above
+        self._overlay_height = 30
+        self.setFixedSize(
+            max(sprite_size.width(), 120),
+            sprite_size.height() + self._overlay_height,
+        )
         self._sprite_label.setFixedSize(sprite_size)
-        self._sprite_label.move(0, overlay_height)
+        # Center sprite horizontally, pin to bottom
+        sprite_x = (self.width() - sprite_size.width()) // 2
+        self._sprite_label.move(sprite_x, self._overlay_height)
 
-        # ── overlay label (semi-transparent text above sprite) ─
+        # ── overlay label (small text floating above sprite) ───
         self._overlay_label = QLabel(self)
         self._overlay_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._overlay_label.setWordWrap(True)
         self._overlay_label.setStyleSheet(
-            "background: rgba(0, 0, 0, 153);"
+            "background: rgba(0, 0, 0, 160);"
             "color: white;"
             "font-weight: bold;"
-            "font-size: 16pt;"
-            "border-radius: 8px;"
-            "padding: 6px 12px;"
+            "font-size: 9pt;"
+            "border-radius: 4px;"
+            "padding: 2px 6px;"
         )
-        self._overlay_label.setFixedWidth(sprite_size.width())
+        self._overlay_label.setFixedWidth(self.width())
         self._overlay_label.move(0, 0)
         self._overlay_label.hide()
 
@@ -223,11 +228,12 @@ class DesktopPet(QWidget):
     def show_overlay(self, text: str) -> None:
         self._overlay_label.setText(text)
         self._overlay_label.adjustSize()
-        # Re-center horizontally
-        w = self._sprite_label.width()
-        lw = self._overlay_label.sizeHint().width()
-        self._overlay_label.setFixedWidth(max(lw + 24, w))
-        x = (self.width() - self._overlay_label.width()) // 2
+        # Fit width to content, clamp to widget width
+        hint_w = self._overlay_label.sizeHint().width() + 12
+        label_w = min(max(hint_w, 60), self.width())
+        self._overlay_label.setFixedWidth(label_w)
+        # Center above sprite
+        x = (self.width() - label_w) // 2
         self._overlay_label.move(max(0, x), 0)
         self._overlay_label.show()
 
