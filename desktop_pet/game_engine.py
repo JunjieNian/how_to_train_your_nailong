@@ -91,9 +91,12 @@ class GameEngine(QObject):
         # Timers (mirror the 3 DispatcherQueueTimers in C++)
         self._delay_timer = QTimer(self)
         self._delay_timer.setSingleShot(True)
+        self._delay_timer.timeout.connect(self._on_delay_timeout)
+        self._delay_callback = None
 
         self._countdown_timer = QTimer(self)
         self._countdown_timer.setInterval(1000)
+        self._countdown_timer.timeout.connect(self._on_countdown_tick)
 
     # ── properties ─────────────────────────────────────────────
 
@@ -179,18 +182,19 @@ class GameEngine(QObject):
 
     def _stop_all_timers(self) -> None:
         self._delay_timer.stop()
+        self._delay_callback = None
         self._countdown_timer.stop()
 
     def _delay_once(self, ms: int, fn) -> None:
         """Fire fn after ms milliseconds (single-shot)."""
         self._delay_timer.stop()
-        try:
-            self._delay_timer.timeout.disconnect()
-        except TypeError:
-            pass
-        self._delay_timer.setInterval(ms)
-        self._delay_timer.timeout.connect(fn)
-        self._delay_timer.start()
+        self._delay_callback = fn
+        self._delay_timer.start(ms)
+
+    def _on_delay_timeout(self) -> None:
+        callback, self._delay_callback = self._delay_callback, None
+        if callback:
+            callback()
 
     def _enter_calibration(self) -> None:
         self._state = GameState.Calibration
@@ -212,26 +216,20 @@ class GameEngine(QObject):
         self._view.show_overlay("3")
 
         self._countdown_timer.stop()
-        try:
-            self._countdown_timer.timeout.disconnect()
-        except TypeError:
-            pass
-
-        def on_tick():
-            if self._state != GameState.Countdown:
-                self._countdown_timer.stop()
-                return
-            self._countdown_remaining -= 1
-            if self._countdown_remaining > 0:
-                self._view.start_countdown(self._countdown_remaining)
-                self._view.show_overlay(str(self._countdown_remaining))
-            else:
-                self._countdown_timer.stop()
-                self._view.clear_overlay()
-                self._enter_stare_loop()
-
-        self._countdown_timer.timeout.connect(on_tick)
         self._countdown_timer.start()
+
+    def _on_countdown_tick(self) -> None:
+        if self._state != GameState.Countdown:
+            self._countdown_timer.stop()
+            return
+        self._countdown_remaining -= 1
+        if self._countdown_remaining > 0:
+            self._view.start_countdown(self._countdown_remaining)
+            self._view.show_overlay(str(self._countdown_remaining))
+        else:
+            self._countdown_timer.stop()
+            self._view.clear_overlay()
+            self._enter_stare_loop()
 
     def _enter_stare_loop(self) -> None:
         self._state = GameState.StareLoop

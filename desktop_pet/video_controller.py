@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import enum
 import random
+import time
 from pathlib import Path
 from typing import Callable
 
-from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QLabel
 
@@ -65,6 +66,8 @@ class VideoController:
         self._idle_frames = self._load_frames(idle_dir)
         self._laugh_frames = self._load_frames(laugh_dir)
         self._frame_idx = 0
+        self._frame_interval_s = 0.1
+        self._animation_started_at = 0.0
 
         # Reverse idle frames (for reverse phase)
         self._idle_reversed = list(reversed(self._idle_frames))
@@ -89,11 +92,14 @@ class VideoController:
 
         # Animation timer (drives frame advancement)
         self._anim_timer = QTimer()
+        self._anim_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._anim_timer.timeout.connect(self._on_anim_tick)
 
         # Hold timer (single-shot for pause phases)
         self._hold_timer = QTimer()
         self._hold_timer.setSingleShot(True)
+        self._hold_timer.timeout.connect(self._on_hold_timeout)
+        self._hold_callback: Callable[[], None] | None = None
 
         # Callback: fired at every Forward→HoldEnd boundary
         self.on_cycle_boundary: Callable[[], None] | None = None
@@ -122,12 +128,20 @@ class VideoController:
 
     def trigger_laugh(self) -> None:
         """Defer laugh to next HoldEnd boundary for seamless cut (exact C++ logic)."""
+        if self._phase == CyclePhase.HoldEnd:
+            self._hold_timer.stop()
+            self._hold_callback = None
+            self._enter_laugh()
+            return
+        if self._phase == CyclePhase.Laughing:
+            return
         self._laugh_pending = True
 
     def stop(self) -> None:
         """Stop all animation and audio. Reset to first idle frame."""
         self._anim_timer.stop()
         self._hold_timer.stop()
+        self._hold_callback = None
         self._stop_all_audio()
         self._phase = CyclePhase.Idle
         self._ambient = False
@@ -150,7 +164,7 @@ class VideoController:
             self._current_frames = list(self._idle_frames)
         self._frame_idx = 0
         self._ambient = True
-        self._anim_timer.start(100)  # 10 fps
+        self._start_animation(10.0)
 
     # ── phase transitions (port of VideoController::Impl) ──────
 
@@ -161,7 +175,7 @@ class VideoController:
         self._frame_idx = 0
         self._ambient = False
         self._play_stare_audio()
-        self._anim_timer.start(100)  # 10 fps
+        self._start_animation(10.0)
 
     def _enter_hold_end(self) -> None:
         """Phase 2: pause on last frame, fire boundary, check laugh."""
@@ -193,7 +207,7 @@ class VideoController:
         self._current_frames = self._idle_reversed
         self._frame_idx = 0
         self._ambient = False
-        self._anim_timer.start(100)  # 10 fps
+        self._start_animation(10.0)
 
     def _enter_hold_start(self) -> None:
         """Phase 4: pause on first frame, then back to Forward."""
@@ -214,18 +228,26 @@ class VideoController:
         self._ambient = False
         self._stop_stare_audio()
         self._play_laugh_audio()
-        self._anim_timer.start(83)  # ~12 fps
+        self._start_animation(12.0)
+
+    def _start_animation(self, fps: float) -> None:
+        """Start playback whose progress is independent of timer jitter."""
+        self._frame_interval_s = 1.0 / fps
+        self._animation_started_at = time.monotonic()
+        self._frame_idx = -1
+        self._on_anim_tick()
+        self._anim_timer.start(max(5, min(16, int(500 / fps))))
 
     def _schedule_hold(self, ms: int, callback) -> None:
         """Single-shot hold timer (replaces C++ ScheduleHold)."""
         self._hold_timer.stop()
-        try:
-            self._hold_timer.timeout.disconnect()
-        except TypeError:
-            pass
-        self._hold_timer.setInterval(ms)
-        self._hold_timer.timeout.connect(callback)
-        self._hold_timer.start()
+        self._hold_callback = callback
+        self._hold_timer.start(ms)
+
+    def _on_hold_timeout(self) -> None:
+        callback, self._hold_callback = self._hold_callback, None
+        if callback:
+            callback()
 
     # ── animation tick ─────────────────────────────────────────
 
@@ -233,18 +255,20 @@ class VideoController:
         if not self._current_frames:
             return
 
-        # Ambient mode: loop forever
+        elapsed = max(0.0, time.monotonic() - self._animation_started_at)
+        target_idx = int(elapsed / self._frame_interval_s)
+
+        # Ambient mode: loop forever without repainting an unchanged frame.
         if self._ambient:
-            idx = self._frame_idx % len(self._current_frames)
-            self._label.setPixmap(self._current_frames[idx])
-            self._frame_idx += 1
+            idx = target_idx % len(self._current_frames)
+            if idx != self._frame_idx:
+                self._label.setPixmap(self._current_frames[idx])
+                self._frame_idx = idx
             return
 
-        # Game mode: advance through current frame set
-        if self._frame_idx < len(self._current_frames):
-            self._label.setPixmap(self._current_frames[self._frame_idx])
-            self._frame_idx += 1
-        else:
+        # Skip obsolete frames after a late UI tick, preventing accumulated
+        # slowdown and keeping the sprite aligned with its audio.
+        if target_idx >= len(self._current_frames):
             # Reached end of current frame set — transition
             if self._phase == CyclePhase.Forward:
                 self._enter_hold_end()
@@ -253,6 +277,9 @@ class VideoController:
             elif self._phase == CyclePhase.Laughing:
                 # Stay on last frame (game handles what happens next)
                 self._anim_timer.stop()
+        elif target_idx != self._frame_idx:
+            self._label.setPixmap(self._current_frames[target_idx])
+            self._frame_idx = target_idx
 
     # ── audio helpers ──────────────────────────────────────────
 
